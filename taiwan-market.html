@@ -333,7 +333,7 @@
   // 各指數代號
   const SYMBOLS = [
     { id: 'twii',   sym: '%5ETWII',   label: '加權指數' },
-    { id: 'fut',    sym: 'FITX%3DF',  label: '台指期',  fallbacks: ['TWF%3DF'] },
+    { id: 'fut',    sym: 'IX0126.TW', label: '台指期',  fallbacks: ['FITX%3DF','TWF%3DF'] },
     { id: 'sp500',  sym: '%5EGSPC',   label: 'S&P 500' },
     { id: 'nasdaq', sym: '%5EIXIC',   label: 'Nasdaq' },
     { id: 'dow',    sym: '%5EDJI',    label: 'Dow Jones' },
@@ -397,11 +397,14 @@
   async function fetchQuote(symbol) {
     const t1 = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`;
     const t2 = `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`;
+    const ts = Date.now();
+    const t1b = t1 + '&_=' + ts;
+    const t2b = t2 + '&_=' + ts;
     const proxies = [
-      `https://corsproxy.io/?url=${encodeURIComponent(t1)}`,
-      `https://api.allorigins.win/raw?url=${encodeURIComponent(t1)}`,
-      `https://corsproxy.io/?url=${encodeURIComponent(t2)}`,
-      `https://api.allorigins.win/raw?url=${encodeURIComponent(t2)}`,
+      `https://corsproxy.io/?url=${encodeURIComponent(t1b)}`,
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(t1b)}`,
+      `https://corsproxy.io/?url=${encodeURIComponent(t2b)}`,
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(t2b)}`,
     ];
     for (const url of proxies) {
       try {
