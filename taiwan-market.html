@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>台股盤況</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Noto+Sans+TC:wght@300;400;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0a0e14;
+    --surface: #111820;
+    --border: #1e2a38;
+    --text: #e8edf2;
+    --muted: #4a6070;
+    --up: #00d084;
+    --down: #ff4d6a;
+    --flat: #7a9bb5;
+    --accent: #1d8cff;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', 'Noto Sans TC', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .header-title {
+    font-size: 13px;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-transform: uppercase;
+    font-weight: 400;
+  }
+
+  .session-badge {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    border: 1px solid;
+  }
+
+  .session-badge.night {
+    color: #a78bfa;
+    border-color: #a78bfa44;
+    background: #a78bfa11;
+  }
+
+  .session-badge.day {
+    color: #fbbf24;
+    border-color: #fbbf2444;
+    background: #fbbf2411;
+  }
+
+  .session-badge.closed {
+    color: var(--muted);
+    border-color: var(--muted);
+    background: transparent;
+  }
+
+  .cards {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    max-width: 360px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 22px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .card.up::before { background: var(--up); }
+  .card.down::before { background: var(--down); }
+  .card.flat::before { background: var(--flat); }
+  .card.loading::before { background: var(--border); }
+
+  .card-label {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+
+  .card-main {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+
+  .price {
+    font-size: 36px;
+    font-weight: 700;
+    font-family: 'Inter', monospace;
+    letter-spacing: -1px;
+    line-height: 1;
+  }
+
+  .price.loading-text {
+    color: var(--border);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+
+  .change-group {
+    text-align: right;
+  }
+
+  .change-pct {
+    font-size: 20px;
+    font-weight: 700;
+    font-family: 'Inter', monospace;
+    line-height: 1;
+  }
+
+  .change-abs {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+    font-family: 'Inter', monospace;
+  }
+
+  .card.up .price,
+  .card.up .change-pct { color: var(--up); }
+
+  .card.down .price,
+  .card.down .change-pct { color: var(--down); }
+
+  .card.flat .price,
+  .card.flat .change-pct { color: var(--flat); }
+
+  .card.loading .price { color: var(--border); }
+
+  .card-footer {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .footer-item {
+    text-align: center;
+  }
+
+  .footer-label {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    margin-bottom: 3px;
+  }
+
+  .footer-val {
+    font-size: 13px;
+    font-family: 'Inter', monospace;
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .refresh-btn {
+    margin-top: 28px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 10px 28px;
+    border-radius: 99px;
+    font-size: 13px;
+    font-family: 'Inter', 'Noto Sans TC', sans-serif;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+    letter-spacing: 0.05em;
+  }
+
+  .refresh-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .refresh-btn:active {
+    transform: scale(0.97);
+  }
+
+  .last-update {
+    margin-top: 16px;
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    letter-spacing: 0.05em;
+  }
+
+  .error-msg {
+    color: var(--down);
+    font-size: 12px;
+    margin-top: 8px;
+    text-align: center;
+  }
+
+  .spinning {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.7; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">台股盤況</div>
+  <div class="session-badge" id="sessionBadge">載入中</div>
+</div>
+
+<div class="cards">
+  <!-- 加權指數 -->
+  <div class="card loading" id="twiiCard">
+    <div class="card-label">加權指數</div>
+    <div class="card-main">
+      <div class="price loading-text" id="twiiPrice">—</div>
+      <div class="change-group">
+        <div class="change-pct" id="twiiPct">—%</div>
+        <div class="change-abs" id="twiiAbs">—</div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <div class="footer-item">
+        <div class="footer-label">開盤</div>
+        <div class="footer-val" id="twiiOpen">—</div>
+      </div>
+      <div class="footer-item">
+        <div class="footer-label">最高</div>
+        <div class="footer-val" id="twiiHigh">—</div>
+      </div>
+      <div class="footer-item">
+        <div class="footer-label">最低</div>
+        <div class="footer-val" id="twiiLow">—</div>
+      </div>
+      <div class="footer-item">
+        <div class="footer-label">昨收</div>
+        <div class="footer-val" id="twiiPrev">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 台指期 -->
+  <div class="card loading" id="futCard">
+    <div class="card-label">台指期（含夜盤）</div>
+    <div class="card-main">
+      <div class="price loading-text" id="futPrice">—</div>
+      <div class="change-group">
+        <div class="change-pct" id="futPct">—%</div>
+        <div class="change-abs" id="futAbs">—</div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <div class="footer-item">
+        <div class="footer-label">開盤</div>
+        <div class="footer-val" id="futOpen">—</div>
+      </div>
+      <div class="footer-item">
+        <div class="footer-label">最高</div>
+        <div class="footer-val" id="futHigh">—</div>
+      </div>
+      <div class="footer-item">
+        <div class="footer-label">最低</div>
+        <div class="footer-val" id="futLow">—</div>
+      </div>
+      <div class="footer-item">
+        <div class="footer-label">昨收</div>
+        <div class="footer-val" id="futPrev">—</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button class="refresh-btn" id="refreshBtn" onclick="loadAll()">↻ 重新整理</button>
+<div class="last-update" id="lastUpdate"></div>
+<div class="error-msg" id="errorMsg"></div>
+
+<script>
+  const PROXY = 'https://query1.finance.yahoo.com/v8/finance/chart/';
+
+  function fmt(n, dec = 2) {
+    if (n == null || isNaN(n)) return '—';
+    return Number(n).toLocaleString('zh-TW', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  }
+
+  function getSession() {
+    const now = new Date();
+    const twNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+    const h = twNow.getHours();
+    const m = twNow.getMinutes();
+    const total = h * 60 + m;
+    const day = twNow.getDay(); // 0=Sun,6=Sat
+
+    if (day === 0 || day === 6) return 'closed';
+    // 日盤：09:00–13:45
+    if (total >= 540 && total <= 825) return 'day';
+    // 夜盤：15:00–隔日05:00
+    if (total >= 900 || total <= 300) return 'night';
+    return 'closed';
+  }
+
+  function updateSessionBadge() {
+    const s = getSession();
+    const badge = document.getElementById('sessionBadge');
+    if (s === 'day') {
+      badge.textContent = '日盤進行中';
+      badge.className = 'session-badge day';
+    } else if (s === 'night') {
+      badge.textContent = '夜盤進行中';
+      badge.className = 'session-badge night';
+    } else {
+      badge.textContent = '休市中';
+      badge.className = 'session-badge closed';
+    }
+  }
+
+  function applyCard(cardId, data) {
+    const card = document.getElementById(cardId);
+    const prefix = cardId === 'twiiCard' ? 'twii' : 'fut';
+    const meta = data?.chart?.result?.[0]?.meta;
+    if (!meta) return;
+
+    const price = meta.regularMarketPrice;
+    const prev  = meta.chartPreviousClose;
+    const open  = meta.regularMarketOpen ?? meta.regularMarketPrice;
+    const high  = meta.regularMarketDayHigh ?? meta.regularMarketPrice;
+    const low   = meta.regularMarketDayLow  ?? meta.regularMarketPrice;
+    const change = price - prev;
+    const pct    = (change / prev) * 100;
+
+    const dir = change > 0 ? 'up' : change < 0 ? 'down' : 'flat';
+    const sign = change >= 0 ? '+' : '';
+
+    card.className = `card ${dir}`;
+    document.getElementById(prefix + 'Price').textContent = fmt(price, 2);
+    document.getElementById(prefix + 'Price').classList.remove('loading-text');
+    document.getElementById(prefix + 'Pct').textContent = `${sign}${fmt(pct, 2)}%`;
+    document.getElementById(prefix + 'Abs').textContent = `${sign}${fmt(change, 2)}`;
+    document.getElementById(prefix + 'Open').textContent = fmt(open, 0);
+    document.getElementById(prefix + 'High').textContent = fmt(high, 0);
+    document.getElementById(prefix + 'Low').textContent  = fmt(low, 0);
+    document.getElementById(prefix + 'Prev').textContent = fmt(prev, 0);
+  }
+
+  async function fetchQuote(symbol) {
+    // Use a CORS proxy since Yahoo Finance blocks direct browser requests
+    const urls = [
+      `https://corsproxy.io/?${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`)}`,
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`)}`
+    ];
+
+    for (const url of urls) {
+      try {
+        const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        if (!res.ok) continue;
+        const data = await res.json();
+        if (data?.chart?.result?.[0]) return data;
+      } catch (e) {
+        continue;
+      }
+    }
+    return null;
+  }
+
+  async function loadAll() {
+    document.getElementById('errorMsg').textContent = '';
+    document.getElementById('refreshBtn').innerHTML = '<span class="spinning">↻</span> 更新中';
+    document.getElementById('refreshBtn').disabled = true;
+
+    updateSessionBadge();
+
+    try {
+      const [twiiData, futData] = await Promise.all([
+        fetchQuote('%5ETWII'),
+        fetchQuote('TWF%3DF')
+      ]);
+
+      if (twiiData) {
+        applyCard('twiiCard', twiiData);
+      } else {
+        document.getElementById('errorMsg').textContent = '加權指數資料載入失敗，請稍後再試';
+      }
+
+      if (futData) {
+        applyCard('futCard', futData);
+      } else {
+        document.getElementById('errorMsg').textContent += '　台指期資料載入失敗';
+      }
+
+      const now = new Date();
+      const twStr = now.toLocaleString('zh-TW', {
+        timeZone: 'Asia/Taipei',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+      });
+      document.getElementById('lastUpdate').textContent = `最後更新：${twStr}`;
+
+    } catch (e) {
+      document.getElementById('errorMsg').textContent = '網路錯誤，請確認連線後重試';
+    }
+
+    document.getElementById('refreshBtn').innerHTML = '↻ 重新整理';
+    document.getElementById('refreshBtn').disabled = false;
+  }
+
+  loadAll();
+</script>
+</body>
+</html>
