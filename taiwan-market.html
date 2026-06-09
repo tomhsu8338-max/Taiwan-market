@@ -414,16 +414,11 @@
   }
 
   async function fetchQuote(symbol) {
-    const t1 = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`;
-    const t2 = `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`;
     const ts = Date.now();
-    const t1b = t1 + '&_=' + ts;
-    const t2b = t2 + '&_=' + ts;
     const proxies = [
-      `https://corsproxy.io/?url=${encodeURIComponent(t1b)}`,
-      `https://api.allorigins.win/raw?url=${encodeURIComponent(t1b)}`,
-      `https://corsproxy.io/?url=${encodeURIComponent(t2b)}`,
-      `https://api.allorigins.win/raw?url=${encodeURIComponent(t2b)}`,
+      `https://yahoo-proxy.tomhsu8338.workers.dev/?symbol=${symbol}&_=${ts}`,
+      `https://corsproxy.io/?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d&_=${ts}`)}`,
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d&_=${ts}`)}`,
     ];
     for (const url of proxies) {
       try {
