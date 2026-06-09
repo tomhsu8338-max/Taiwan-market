@@ -6,204 +6,133 @@
 <title>盤況總覽</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Noto+Sans+TC:wght@300;400;700&display=swap');
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
+  * { margin:0; padding:0; box-sizing:border-box; }
   :root {
-    --bg: #0a0e14;
-    --surface: #111820;
-    --border: #1e2a38;
-    --text: #e8edf2;
-    --muted: #4a6070;
-    --up: #00d084;
-    --down: #ff4d6a;
-    --flat: #7a9bb5;
-    --accent: #1d8cff;
+    --bg:#0a0e14; --surface:#111820; --surface2:#161f2c;
+    --border:#1e2a38; --text:#e8edf2; --muted:#4a6070;
+    --up:#00d084; --down:#ff4d6a; --flat:#7a9bb5; --accent:#1d8cff;
   }
-
   body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Inter', 'Noto Sans TC', sans-serif;
-    min-height: 100vh;
-    padding: 28px 16px 40px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    background:var(--bg); color:var(--text);
+    font-family:'Inter','Noto Sans TC',sans-serif;
+    min-height:100vh; padding:24px 14px 48px;
+    display:flex; flex-direction:column; align-items:center;
   }
-
-  .header {
-    text-align: center;
-    margin-bottom: 24px;
-  }
-
-  .header-title {
-    font-size: 13px;
-    letter-spacing: 0.15em;
-    color: var(--muted);
-    text-transform: uppercase;
-    font-weight: 400;
-  }
-
+  .header { text-align:center; margin-bottom:20px; }
+  .header-title { font-size:12px; letter-spacing:.15em; color:var(--muted); text-transform:uppercase; }
   .session-badge {
-    display: inline-block;
-    margin-top: 8px;
-    padding: 3px 10px;
-    border-radius: 20px;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    border: 1px solid;
+    display:inline-block; margin-top:6px; padding:3px 10px;
+    border-radius:20px; font-size:11px; font-weight:600;
+    letter-spacing:.08em; border:1px solid;
   }
   .session-badge.night { color:#a78bfa; border-color:#a78bfa44; background:#a78bfa11; }
   .session-badge.day   { color:#fbbf24; border-color:#fbbf2444; background:#fbbf2411; }
   .session-badge.closed{ color:var(--muted); border-color:var(--muted); background:transparent; }
 
   .section-label {
-    width: 100%;
-    max-width: 360px;
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    color: var(--muted);
-    text-transform: uppercase;
-    font-weight: 600;
-    margin: 20px 0 8px;
-    padding-left: 4px;
+    width:100%; max-width:390px;
+    font-size:10px; letter-spacing:.12em; color:var(--muted);
+    text-transform:uppercase; font-weight:600;
+    margin:18px 0 8px; padding-left:4px;
   }
-
-  .cards {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    width: 100%;
-    max-width: 360px;
-  }
+  .cards { display:flex; flex-direction:column; gap:8px; width:100%; max-width:390px; }
 
   .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 16px 18px;
-    position: relative;
-    overflow: hidden;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:14px; overflow:hidden; cursor:pointer;
+    transition:border-color .2s;
   }
+  .card:active { transform:scale(.99); }
+  .card.expanded { border-color:#2a3a50; }
 
-  .card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 2px;
-    border-radius: 14px 14px 0 0;
+  .card-top { padding:14px 16px; position:relative; }
+  .card-top::before {
+    content:''; position:absolute; top:0; left:0; right:0;
+    height:2px; border-radius:14px 14px 0 0;
   }
-  .card.up::before    { background: var(--up); }
-  .card.down::before  { background: var(--down); }
-  .card.flat::before  { background: var(--flat); }
-  .card.loading::before { background: var(--border); }
+  .card.up .card-top::before    { background:var(--up); }
+  .card.down .card-top::before  { background:var(--down); }
+  .card.flat .card-top::before  { background:var(--flat); }
+  .card.loading .card-top::before { background:var(--border); }
 
-  .card-label {
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    font-weight: 600;
-    margin-bottom: 10px;
-  }
+  .card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .card-label { font-size:10px; color:var(--muted); letter-spacing:.1em; text-transform:uppercase; font-weight:600; }
+  .expand-icon { font-size:10px; color:var(--muted); transition:transform .3s; }
+  .card.expanded .expand-icon { transform:rotate(180deg); }
 
-  .card-main {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-  }
-
+  .card-main { display:flex; align-items:flex-end; justify-content:space-between; }
   .price {
-    font-size: 30px;
-    font-weight: 700;
-    font-family: 'Inter', monospace;
-    letter-spacing: -0.5px;
-    line-height: 1;
+    font-size:28px; font-weight:700; font-family:'Inter',monospace;
+    letter-spacing:-.5px; line-height:1;
   }
+  .price.loading-text { color:var(--border); animation:pulse 1.4s ease-in-out infinite; }
+  .change-group { text-align:right; }
+  .change-pct { font-size:17px; font-weight:700; font-family:'Inter',monospace; line-height:1; }
+  .change-abs { font-size:11px; color:var(--muted); margin-top:3px; font-family:'Inter',monospace; }
 
-  .price.loading-text {
-    color: var(--border);
-    animation: pulse 1.4s ease-in-out infinite;
-  }
-
-  .change-group { text-align: right; }
-
-  .change-pct {
-    font-size: 18px;
-    font-weight: 700;
-    font-family: 'Inter', monospace;
-    line-height: 1;
-  }
-
-  .change-abs {
-    font-size: 11px;
-    color: var(--muted);
-    margin-top: 3px;
-    font-family: 'Inter', monospace;
-  }
-
-  .card.up .price, .card.up .change-pct   { color: var(--up); }
-  .card.down .price, .card.down .change-pct { color: var(--down); }
-  .card.flat .price, .card.flat .change-pct { color: var(--flat); }
-  .card.loading .price { color: var(--border); }
+  .card.up .price, .card.up .change-pct   { color:var(--up); }
+  .card.down .price, .card.down .change-pct { color:var(--down); }
+  .card.flat .price, .card.flat .change-pct { color:var(--flat); }
+  .card.loading .price { color:var(--border); }
 
   .card-footer {
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid var(--border);
-    display: flex;
-    justify-content: space-between;
+    margin-top:10px; padding-top:10px;
+    border-top:1px solid var(--border);
+    display:flex; justify-content:space-between;
+  }
+  .footer-item { text-align:center; }
+  .footer-label { font-size:9px; color:var(--muted); letter-spacing:.08em; margin-bottom:2px; }
+  .footer-val { font-size:12px; font-family:'Inter',monospace; color:var(--text); font-weight:500; }
+
+  /* 走勢圖區塊 */
+  .chart-section {
+    display:none; border-top:1px solid var(--border);
+    background:var(--surface2);
+  }
+  .card.expanded .chart-section { display:block; }
+
+  .range-tabs {
+    display:flex; padding:10px 12px 0;
+    gap:4px; overflow-x:auto;
+    scrollbar-width:none;
+  }
+  .range-tabs::-webkit-scrollbar { display:none; }
+  .range-btn {
+    background:transparent; border:1px solid var(--border);
+    color:var(--muted); padding:4px 10px; border-radius:99px;
+    font-size:11px; font-family:'Inter',sans-serif;
+    cursor:pointer; white-space:nowrap; transition:all .15s;
+    flex-shrink:0;
+  }
+  .range-btn.active {
+    background:var(--accent); border-color:var(--accent);
+    color:#fff; font-weight:600;
   }
 
-  .footer-item { text-align: center; }
-
-  .footer-label {
-    font-size: 9px;
-    color: var(--muted);
-    letter-spacing: 0.08em;
-    margin-bottom: 2px;
+  .chart-wrap {
+    height:220px; margin:10px 0 0;
+    position:relative;
   }
-
-  .footer-val {
-    font-size: 12px;
-    font-family: 'Inter', monospace;
-    color: var(--text);
-    font-weight: 500;
+  .chart-wrap iframe {
+    width:100%; height:100%; border:none; display:block;
+  }
+  .chart-loading {
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--muted); font-size:12px; background:var(--surface2);
   }
 
   .refresh-btn {
-    margin-top: 24px;
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--muted);
-    padding: 10px 28px;
-    border-radius: 99px;
-    font-size: 13px;
-    font-family: 'Inter', 'Noto Sans TC', sans-serif;
-    cursor: pointer;
-    transition: border-color 0.2s, color 0.2s;
+    margin-top:24px; background:transparent;
+    border:1px solid var(--border); color:var(--muted);
+    padding:10px 28px; border-radius:99px;
+    font-size:13px; font-family:'Inter','Noto Sans TC',sans-serif;
+    cursor:pointer;
   }
+  .refresh-btn:active { transform:scale(.97); }
+  .last-update { margin-top:12px; font-size:11px; color:var(--muted); text-align:center; }
 
-  .refresh-btn:active { transform: scale(0.97); }
-
-  .last-update {
-    margin-top: 14px;
-    font-size: 11px;
-    color: var(--muted);
-    text-align: center;
-  }
-
-  .error-msg {
-    color: var(--down);
-    font-size: 11px;
-    margin-top: 6px;
-    text-align: center;
-  }
-
-  .spinning { display: inline-block; animation: spin 1s linear infinite; }
-
+  .spinning { display:inline-block; animation:spin 1s linear infinite; }
   @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
   @keyframes pulse { 0%,100%{opacity:.3} 50%{opacity:.7} }
 </style>
@@ -215,253 +144,237 @@
   <div class="session-badge" id="sessionBadge">載入中</div>
 </div>
 
-<!-- 台灣 -->
 <div class="section-label">🇹🇼 台灣</div>
-<div class="cards">
-  <div class="card loading" id="card-twii">
-    <div class="card-label">加權指數</div>
-    <div class="card-main">
-      <div class="price loading-text" id="price-twii">—</div>
-      <div class="change-group">
-        <div class="change-pct" id="pct-twii">—%</div>
-        <div class="change-abs" id="abs-twii">—</div>
-      </div>
-    </div>
-    <div class="card-footer">
-      <div class="footer-item"><div class="footer-label">開盤</div><div class="footer-val" id="open-twii">—</div></div>
-      <div class="footer-item"><div class="footer-label">最高</div><div class="footer-val" id="high-twii">—</div></div>
-      <div class="footer-item"><div class="footer-label">最低</div><div class="footer-val" id="low-twii">—</div></div>
-      <div class="footer-item"><div class="footer-label">昨收</div><div class="footer-val" id="prev-twii">—</div></div>
-    </div>
-  </div>
+<div class="cards" id="tw-cards"></div>
 
-  <div class="card loading" id="card-fut">
-    <div class="card-label">台指期（含夜盤）</div>
-    <div class="card-main">
-      <div class="price loading-text" id="price-fut">—</div>
-      <div class="change-group">
-        <div class="change-pct" id="pct-fut">—%</div>
-        <div class="change-abs" id="abs-fut">—</div>
-      </div>
-    </div>
-    <div class="card-footer">
-      <div class="footer-item"><div class="footer-label">開盤</div><div class="footer-val" id="open-fut">—</div></div>
-      <div class="footer-item"><div class="footer-label">最高</div><div class="footer-val" id="high-fut">—</div></div>
-      <div class="footer-item"><div class="footer-label">最低</div><div class="footer-val" id="low-fut">—</div></div>
-      <div class="footer-item"><div class="footer-label">昨收</div><div class="footer-val" id="prev-fut">—</div></div>
-    </div>
-  </div>
-</div>
-
-<!-- 美國 -->
 <div class="section-label">🇺🇸 美國</div>
-<div class="cards">
-  <div class="card loading" id="card-sp500">
-    <div class="card-label">S&amp;P 500</div>
-    <div class="card-main">
-      <div class="price loading-text" id="price-sp500">—</div>
-      <div class="change-group">
-        <div class="change-pct" id="pct-sp500">—%</div>
-        <div class="change-abs" id="abs-sp500">—</div>
-      </div>
-    </div>
-    <div class="card-footer">
-      <div class="footer-item"><div class="footer-label">開盤</div><div class="footer-val" id="open-sp500">—</div></div>
-      <div class="footer-item"><div class="footer-label">最高</div><div class="footer-val" id="high-sp500">—</div></div>
-      <div class="footer-item"><div class="footer-label">最低</div><div class="footer-val" id="low-sp500">—</div></div>
-      <div class="footer-item"><div class="footer-label">昨收</div><div class="footer-val" id="prev-sp500">—</div></div>
-    </div>
-  </div>
+<div class="cards" id="us-cards"></div>
 
-  <div class="card loading" id="card-nasdaq">
-    <div class="card-label">那斯達克 Nasdaq</div>
-    <div class="card-main">
-      <div class="price loading-text" id="price-nasdaq">—</div>
-      <div class="change-group">
-        <div class="change-pct" id="pct-nasdaq">—%</div>
-        <div class="change-abs" id="abs-nasdaq">—</div>
-      </div>
-    </div>
-    <div class="card-footer">
-      <div class="footer-item"><div class="footer-label">開盤</div><div class="footer-val" id="open-nasdaq">—</div></div>
-      <div class="footer-item"><div class="footer-label">最高</div><div class="footer-val" id="high-nasdaq">—</div></div>
-      <div class="footer-item"><div class="footer-label">最低</div><div class="footer-val" id="low-nasdaq">—</div></div>
-      <div class="footer-item"><div class="footer-label">昨收</div><div class="footer-val" id="prev-nasdaq">—</div></div>
-    </div>
-  </div>
-
-  <div class="card loading" id="card-dow">
-    <div class="card-label">道瓊 Dow Jones</div>
-    <div class="card-main">
-      <div class="price loading-text" id="price-dow">—</div>
-      <div class="change-group">
-        <div class="change-pct" id="pct-dow">—%</div>
-        <div class="change-abs" id="abs-dow">—</div>
-      </div>
-    </div>
-    <div class="card-footer">
-      <div class="footer-item"><div class="footer-label">開盤</div><div class="footer-val" id="open-dow">—</div></div>
-      <div class="footer-item"><div class="footer-label">最高</div><div class="footer-val" id="high-dow">—</div></div>
-      <div class="footer-item"><div class="footer-label">最低</div><div class="footer-val" id="low-dow">—</div></div>
-      <div class="footer-item"><div class="footer-label">昨收</div><div class="footer-val" id="prev-dow">—</div></div>
-    </div>
-  </div>
-
-  <div class="card loading" id="card-sox">
-    <div class="card-label">費城半導體 SOX</div>
-    <div class="card-main">
-      <div class="price loading-text" id="price-sox">—</div>
-      <div class="change-group">
-        <div class="change-pct" id="pct-sox">—%</div>
-        <div class="change-abs" id="abs-sox">—</div>
-      </div>
-    </div>
-    <div class="card-footer">
-      <div class="footer-item"><div class="footer-label">開盤</div><div class="footer-val" id="open-sox">—</div></div>
-      <div class="footer-item"><div class="footer-label">最高</div><div class="footer-val" id="high-sox">—</div></div>
-      <div class="footer-item"><div class="footer-label">最低</div><div class="footer-val" id="low-sox">—</div></div>
-      <div class="footer-item"><div class="footer-label">昨收</div><div class="footer-val" id="prev-sox">—</div></div>
-    </div>
-  </div>
-</div>
+<div class="section-label">🌐 其他</div>
+<div class="cards" id="other-cards"></div>
 
 <button class="refresh-btn" id="refreshBtn" onclick="loadAll()">↻ 重新整理</button>
 <div class="last-update" id="lastUpdate"></div>
-<div class="error-msg" id="errorMsg"></div>
 
 <script>
-  // 各指數代號
-  const SYMBOLS = [
-    { id: 'twii',   sym: '%5ETWII',   label: '加權指數' },
-    { id: 'fut',    sym: 'WTX%26',    label: '台指期',  fallbacks: ['IX0126.TW'] },
-    { id: 'sp500',  sym: '%5EGSPC',   label: 'S&P 500' },
-    { id: 'nasdaq', sym: '%5EIXIC',   label: 'Nasdaq' },
-    { id: 'dow',    sym: '%5EDJI',    label: 'Dow Jones' },
-    { id: 'sox',    sym: '%5ESOX',    label: 'SOX' },
+// TradingView symbol mapping
+const SYMBOLS = [
+  // 台灣
+  { id:'twii',   yahoo:'%5ETWII',   tv:'TWSE:TAIWANINDEX', label:'加權指數',        group:'tw' },
+  { id:'fut',    yahoo:'IX0126.TW', tv:'TAIFEX:TXF1!',     label:'台指期（含夜盤）', group:'tw', isFut:true },
+  // 美國
+  { id:'sp500',  yahoo:'%5EGSPC',   tv:'SP:SPX',           label:'S&P 500',         group:'us' },
+  { id:'nasdaq', yahoo:'%5EIXIC',   tv:'NASDAQ:IXIC',      label:'那斯達克 Nasdaq', group:'us' },
+  { id:'dow',    yahoo:'%5EDJI',    tv:'DJ:DJI',           label:'道瓊 Dow Jones',  group:'us' },
+  { id:'sox',    yahoo:'%5ESOX',    tv:'PHLX:SOX',         label:'費城半導體 SOX',  group:'us' },
+  // 其他
+  { id:'gold',   yahoo:'GC%3DF',    tv:'COMEX:GC1!',       label:'黃金 Gold',       group:'other' },
+  { id:'vix',    yahoo:'%5EVIX',    tv:'CBOE:VIX',         label:'恐慌指數 VIX',    group:'other' },
+];
+
+const RANGES = [
+  { label:'1天', tv:'1D',  interval:'5' },
+  { label:'1週', tv:'5D',  interval:'15' },
+  { label:'1月', tv:'1M',  interval:'60' },
+  { label:'3月', tv:'3M',  interval:'D' },
+  { label:'今年', tv:'YTD', interval:'D' },
+  { label:'1年', tv:'12M', interval:'W' },
+  { label:'5年', tv:'60M', interval:'W' },
+];
+
+let twiiPrevClose = null;
+const activeRange = {}; // per card
+
+function fmt(n, dec=2) {
+  if (n==null||isNaN(n)) return '—';
+  return Number(n).toLocaleString('zh-TW',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+}
+
+function getSession() {
+  const tw = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Taipei'}));
+  const t = tw.getHours()*60+tw.getMinutes(), d=tw.getDay();
+  if(d===0||d===6) return 'closed';
+  if(t>=540&&t<=825) return 'day';
+  if(t>=900||t<=300) return 'night';
+  return 'closed';
+}
+
+function buildCard(sym) {
+  const div = document.createElement('div');
+  div.className = 'card loading';
+  div.id = 'card-'+sym.id;
+  div.innerHTML = `
+    <div class="card-top" onclick="toggleChart('${sym.id}')">
+      <div class="card-header">
+        <div class="card-label">${sym.label}</div>
+        <div class="expand-icon">▼</div>
+      </div>
+      <div class="card-main">
+        <div class="price loading-text" id="price-${sym.id}">—</div>
+        <div class="change-group">
+          <div class="change-pct" id="pct-${sym.id}">—%</div>
+          <div class="change-abs" id="abs-${sym.id}">—</div>
+        </div>
+      </div>
+      <div class="card-footer">
+        <div class="footer-item"><div class="footer-label">開盤</div><div class="footer-val" id="open-${sym.id}">—</div></div>
+        <div class="footer-item"><div class="footer-label">最高</div><div class="footer-val" id="high-${sym.id}">—</div></div>
+        <div class="footer-item"><div class="footer-label">最低</div><div class="footer-val" id="low-${sym.id}">—</div></div>
+        <div class="footer-item"><div class="footer-label">昨收</div><div class="footer-val" id="prev-${sym.id}">—</div></div>
+      </div>
+    </div>
+    <div class="chart-section" id="chart-${sym.id}">
+      <div class="range-tabs" id="tabs-${sym.id}"></div>
+      <div class="chart-wrap" id="wrap-${sym.id}">
+        <div class="chart-loading">載入中...</div>
+      </div>
+    </div>`;
+
+  const group = sym.group==='tw'?'tw-cards':sym.group==='us'?'us-cards':'other-cards';
+  document.getElementById(group).appendChild(div);
+
+  // build range tabs
+  const tabs = div.querySelector(`#tabs-${sym.id}`);
+  RANGES.forEach((r,i) => {
+    const btn = document.createElement('button');
+    btn.className = 'range-btn' + (i===0?' active':'');
+    btn.textContent = r.label;
+    btn.onclick = (e) => { e.stopPropagation(); setRange(sym.id, sym.tv, i); };
+    tabs.appendChild(btn);
+  });
+  activeRange[sym.id] = 0;
+}
+
+function toggleChart(id) {
+  const card = document.getElementById('card-'+id);
+  const isExpanded = card.classList.contains('expanded');
+  if (!isExpanded) {
+    card.classList.add('expanded');
+    const sym = SYMBOLS.find(s=>s.id===id);
+    loadChart(id, sym.tv, activeRange[id]);
+  } else {
+    card.classList.remove('expanded');
+  }
+}
+
+function setRange(id, tvSym, rangeIdx) {
+  activeRange[id] = rangeIdx;
+  const tabs = document.querySelectorAll(`#tabs-${id} .range-btn`);
+  tabs.forEach((b,i) => b.classList.toggle('active', i===rangeIdx));
+  loadChart(id, tvSym, rangeIdx);
+}
+
+function loadChart(id, tvSym, rangeIdx) {
+  const wrap = document.getElementById('wrap-'+id);
+  const r = RANGES[rangeIdx];
+  wrap.innerHTML = '<div class="chart-loading">載入中...</div>';
+
+  const params = new URLSearchParams({
+    symbol: tvSym,
+    interval: r.interval,
+    range: r.tv,
+    theme: 'dark',
+    style: '1',
+    locale: 'zh_TW',
+    toolbar_bg: '#161f2c',
+    enable_publishing: 'false',
+    hide_top_toolbar: 'true',
+    hide_legend: 'false',
+    save_image: 'false',
+    container_id: 'tv_'+id,
+    autosize: 'true',
+    backgroundColor: 'rgba(17,24,32,1)',
+    gridColor: 'rgba(30,42,56,0.5)',
+    hide_volume: 'true',
+  });
+
+  const iframe = document.createElement('iframe');
+  iframe.src = `https://s.tradingview.com/widgetembed/?${params}`;
+  iframe.onload = () => {};
+  wrap.innerHTML = '';
+  wrap.appendChild(iframe);
+}
+
+async function fetchQuote(symbol) {
+  const ts = Date.now();
+  const proxies = [
+    `https://yahoo-proxy.tomhsu8338.workers.dev/?symbol=${symbol}&_=${ts}`,
+    `https://corsproxy.io/?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d&_=${ts}`)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d&_=${ts}`)}`,
   ];
+  for (const url of proxies) {
+    try {
+      const res = await fetch(url, {headers:{Accept:'application/json'}});
+      if (!res.ok) continue;
+      const data = JSON.parse(await res.text());
+      if (data?.chart?.result?.[0]) return data;
+    } catch { continue; }
+  }
+  return null;
+}
 
-  function fmt(n, dec = 2) {
-    if (n == null || isNaN(n)) return '—';
-    return Number(n).toLocaleString('zh-TW', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+function applyCard(sym, data) {
+  const card = document.getElementById('card-'+sym.id);
+  const meta = data?.chart?.result?.[0]?.meta;
+  if (!meta) return;
+
+  let price = meta.regularMarketPrice;
+  let prev  = meta.chartPreviousClose;
+  let open  = meta.regularMarketOpen  ?? price;
+  let high  = meta.regularMarketDayHigh ?? price;
+  let low   = meta.regularMarketDayLow  ?? price;
+
+  if (sym.id==='twii') twiiPrevClose = prev;
+
+  // 台指期換算
+  if (sym.isFut && twiiPrevClose && prev) {
+    const ratio = twiiPrevClose / prev;
+    price*=ratio; prev*=ratio; open*=ratio; high*=ratio; low*=ratio;
   }
 
-  function getSession() {
-    const twNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
-    const total = twNow.getHours() * 60 + twNow.getMinutes();
-    const day = twNow.getDay();
-    if (day === 0 || day === 6) return 'closed';
-    if (total >= 540 && total <= 825) return 'day';
-    if (total >= 900 || total <= 300) return 'night';
-    return 'closed';
-  }
+  const change = price-prev, pct=(change/prev)*100;
+  const dir = change>0?'up':change<0?'down':'flat';
+  const sign = change>=0?'+':'';
 
-  function updateSessionBadge() {
-    const s = getSession();
-    const badge = document.getElementById('sessionBadge');
-    const map = {
-      day:    ['日盤進行中', 'day'],
-      night:  ['夜盤進行中', 'night'],
-      closed: ['休市中',    'closed'],
-    };
-    badge.textContent = map[s][0];
-    badge.className = 'session-badge ' + map[s][1];
-  }
+  card.className = `card ${dir}${card.classList.contains('expanded')?' expanded':''}`;
+  const priceEl = document.getElementById('price-'+sym.id);
+  priceEl.textContent = fmt(price,2);
+  priceEl.classList.remove('loading-text');
+  document.getElementById('pct-'+sym.id).textContent  = `${sign}${fmt(pct,2)}%`;
+  document.getElementById('abs-'+sym.id).textContent  = `${sign}${fmt(change,2)}`;
+  document.getElementById('open-'+sym.id).textContent = fmt(open,0);
+  document.getElementById('high-'+sym.id).textContent = fmt(high,0);
+  document.getElementById('low-'+sym.id).textContent  = fmt(low,0);
+  document.getElementById('prev-'+sym.id).textContent = fmt(prev,0);
+}
 
-  // 儲存加權指數昨收，供台指期換算用
-  let twiiPrevClose = null;
+async function loadOne(sym) {
+  const data = await fetchQuote(sym.yahoo);
+  if (data) applyCard(sym, data);
+}
 
-  function applyCard(id, data) {
-    const card = document.getElementById('card-' + id);
-    const meta = data?.chart?.result?.[0]?.meta;
-    if (!meta) return;
+async function loadAll() {
+  document.getElementById('refreshBtn').innerHTML = '<span class="spinning">↻</span> 更新中';
+  document.getElementById('refreshBtn').disabled = true;
 
-    let price  = meta.regularMarketPrice;
-    let prev   = meta.chartPreviousClose;
-    let open   = meta.regularMarketOpen   ?? price;
-    let high   = meta.regularMarketDayHigh ?? price;
-    let low    = meta.regularMarketDayLow  ?? price;
+  const s = getSession();
+  const badge = document.getElementById('sessionBadge');
+  const map = {day:['日盤進行中','day'],night:['夜盤進行中','night'],closed:['休市中','closed']};
+  badge.textContent=map[s][0]; badge.className='session-badge '+map[s][1];
 
-    // 台指期動態換算：用加權指數昨收 / IX0126昨收 算出當日係數
-    if (id === 'fut' && twiiPrevClose && prev) {
-      const ratio = twiiPrevClose / prev;
-      price = price * ratio;
-      prev  = prev  * ratio;
-      open  = open  * ratio;
-      high  = high  * ratio;
-      low   = low   * ratio;
-    }
+  // 先抓加權指數設定換算基準
+  await loadOne(SYMBOLS.find(s=>s.id==='twii'));
+  await Promise.all(SYMBOLS.filter(s=>s.id!=='twii').map(loadOne));
 
-    // 若是加權指數，記錄昨收
-    if (id === 'twii') {
-      twiiPrevClose = meta.chartPreviousClose;
-    }
+  const tw = new Date().toLocaleString('zh-TW',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+  document.getElementById('lastUpdate').textContent = `最後更新：${tw}`;
+  document.getElementById('refreshBtn').innerHTML='↻ 重新整理';
+  document.getElementById('refreshBtn').disabled=false;
+}
 
-    const change = price - prev;
-    const pct    = (change / prev) * 100;
-    const dir    = change > 0 ? 'up' : change < 0 ? 'down' : 'flat';
-    const sign   = change >= 0 ? '+' : '';
-
-    card.className = `card ${dir}`;
-    const priceEl = document.getElementById('price-' + id);
-    priceEl.textContent = fmt(price, 2);
-    priceEl.classList.remove('loading-text');
-    document.getElementById('pct-'  + id).textContent = `${sign}${fmt(pct, 2)}%`;
-    document.getElementById('abs-'  + id).textContent = `${sign}${fmt(change, 2)}`;
-    document.getElementById('open-' + id).textContent = fmt(open, 0);
-    document.getElementById('high-' + id).textContent = fmt(high, 0);
-    document.getElementById('low-'  + id).textContent = fmt(low,  0);
-    document.getElementById('prev-' + id).textContent = fmt(prev, 0);
-  }
-
-  async function fetchQuote(symbol) {
-    const ts = Date.now();
-    const proxies = [
-      `https://yahoo-proxy.tomhsu8338.workers.dev/?symbol=${symbol}&_=${ts}`,
-      `https://corsproxy.io/?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d&_=${ts}`)}`,
-      `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d&_=${ts}`)}`,
-    ];
-    for (const url of proxies) {
-      try {
-        const res = await fetch(url, { headers: { Accept: 'application/json' } });
-        if (!res.ok) continue;
-        const data = JSON.parse(await res.text());
-        if (data?.chart?.result?.[0]) return data;
-      } catch { continue; }
-    }
-    return null;
-  }
-
-  async function loadOne(item) {
-    let data = await fetchQuote(item.sym);
-    if (!data && item.fallbacks) {
-      for (const fb of item.fallbacks) {
-        data = await fetchQuote(fb);
-        if (data) break;
-      }
-    }
-    if (data) applyCard(item.id, data);
-  }
-
-  async function loadAll() {
-    document.getElementById('errorMsg').textContent = '';
-    document.getElementById('refreshBtn').innerHTML = '<span class="spinning">↻</span> 更新中';
-    document.getElementById('refreshBtn').disabled = true;
-    updateSessionBadge();
-
-    // 先抓加權指數，設好換算基準，再抓其他
-    await loadOne(SYMBOLS.find(s => s.id === 'twii'));
-    await Promise.all(SYMBOLS.filter(s => s.id !== 'twii').map(loadOne));
-
-    const twStr = new Date().toLocaleString('zh-TW', {
-      timeZone: 'Asia/Taipei',
-      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
-    });
-    document.getElementById('lastUpdate').textContent = `最後更新：${twStr}`;
-    document.getElementById('refreshBtn').innerHTML = '↻ 重新整理';
-    document.getElementById('refreshBtn').disabled = false;
-  }
-
-  loadAll();
+// 建立所有卡片
+SYMBOLS.forEach(buildCard);
+loadAll();
 </script>
 </body>
 </html>
