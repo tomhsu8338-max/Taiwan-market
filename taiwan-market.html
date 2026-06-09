@@ -384,17 +384,22 @@
   }
 
   async function fetchQuote(symbol) {
-    // Use a CORS proxy since Yahoo Finance blocks direct browser requests
+    const target1 = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`;
+    const target2 = `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`;
+
     const urls = [
-      `https://corsproxy.io/?${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`)}`,
-      `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`)}`
+      `https://corsproxy.io/?url=${encodeURIComponent(target1)}`,
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(target1)}`,
+      `https://thingproxy.freeboard.io/fetch/${target2}`,
+      `https://corsproxy.io/?url=${encodeURIComponent(target2)}`,
     ];
 
     for (const url of urls) {
       try {
         const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
         if (!res.ok) continue;
-        const data = await res.json();
+        const text = await res.text();
+        const data = JSON.parse(text);
         if (data?.chart?.result?.[0]) return data;
       } catch (e) {
         continue;
