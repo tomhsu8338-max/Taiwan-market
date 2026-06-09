@@ -305,10 +305,10 @@ async function loadChart(id,yahoo,idx){
   });
 
   // 觸控/滑鼠 crosshair
-  setupCrosshair(id,canvas,chartInstances[id],data,color);
+  setupCrosshair(id,canvas,chartInstances[id],data,color,state);
 }
 
-function setupCrosshair(id,canvas,chart,data,color){
+function setupCrosshair(id,canvas,chart,data,color,state){
   const tt=document.getElementById('tt-'+id);
   const ttTime=document.getElementById('tt-time-'+id);
   const ttVal=document.getElementById('tt-val-'+id);
@@ -487,23 +487,30 @@ function applyCard(id,meta){
 
 async function fetchFinMindFut(){
   try{
-    // 台灣期交所官方 API，透過 Cloudflare Worker 轉
     const url='https://yahoo-proxy.tomhsu8338.workers.dev/?taifex=1';
     const res=await fetch(url,{headers:{Accept:'application/json'}});
     if(!res.ok)return null;
     const json=await res.json();
-    // 期交所回傳格式：rtList 陣列，找台指期近月 TXFB0 或 TXF00
-    const rows=json?.rtList||json?.data||[];
-    const tx=rows.find(r=>{
-      const code=r.CID||r.code||r.contractCode||'';
-      return code.startsWith('TXF')&&!code.includes('O');
-    });
-    if(!tx)return null;
-    const price=parseFloat(tx.CLO||tx.close||tx.lastPrice||0);
-    const prev=parseFloat(tx.REF||tx.yesterday||tx.prevClose||0);
-    const open=parseFloat(tx.OPE||tx.open||price||0);
-    const high=parseFloat(tx.HIG||tx.high||price||0);
-    const low=parseFloat(tx.LOW||tx.low||price||0);
+    const rows=json?.RtData?.QuoteList||[];
+    if(!rows.length)return null;
+
+    // 判斷現在是日盤還是夜盤（台灣時間）
+    const tw=new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Taipei'}));
+    const t=tw.getHours()*60+tw.getMinutes();
+    const isDay=(t>=510&&t<=830); // 08:30~13:50 日盤
+    const suffix=isDay?'-F':'-M';
+
+    // 找成交量最大的近月合約（日盤-F，夜盤-M）
+    const candidates=rows.filter(r=>r.SymbolID&&r.SymbolID.includes('TXF')&&r.SymbolID.endsWith(suffix));
+    if(!candidates.length)return null;
+    // 取成交量最大的
+    const tx=candidates.reduce((a,b)=>parseInt(b.CTotalVolume||0)>parseInt(a.CTotalVolume||0)?b:a);
+
+    const price=parseFloat(tx.CLastPrice||0);
+    const prev=parseFloat(tx.CRefPrice||0);
+    const open=parseFloat(tx.COpenPrice||price||0);
+    const high=parseFloat(tx.CHighPrice||price||0);
+    const low=parseFloat(tx.CLowPrice||price||0);
     if(!price||!prev)return null;
     return{price,prev,open,high,low};
   }catch(e){return null;}
