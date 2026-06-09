@@ -367,16 +367,35 @@
     badge.className = 'session-badge ' + map[s][1];
   }
 
+  // 儲存加權指數昨收，供台指期換算用
+  let twiiPrevClose = null;
+
   function applyCard(id, data) {
     const card = document.getElementById('card-' + id);
     const meta = data?.chart?.result?.[0]?.meta;
     if (!meta) return;
 
-    const price  = meta.regularMarketPrice;
-    const prev   = meta.chartPreviousClose;
-    const open   = meta.regularMarketOpen   ?? price;
-    const high   = meta.regularMarketDayHigh ?? price;
-    const low    = meta.regularMarketDayLow  ?? price;
+    let price  = meta.regularMarketPrice;
+    let prev   = meta.chartPreviousClose;
+    let open   = meta.regularMarketOpen   ?? price;
+    let high   = meta.regularMarketDayHigh ?? price;
+    let low    = meta.regularMarketDayLow  ?? price;
+
+    // 台指期動態換算：用加權指數昨收 / IX0126昨收 算出當日係數
+    if (id === 'fut' && twiiPrevClose && prev) {
+      const ratio = twiiPrevClose / prev;
+      price = price * ratio;
+      prev  = prev  * ratio;
+      open  = open  * ratio;
+      high  = high  * ratio;
+      low   = low   * ratio;
+    }
+
+    // 若是加權指數，記錄昨收
+    if (id === 'twii') {
+      twiiPrevClose = meta.chartPreviousClose;
+    }
+
     const change = price - prev;
     const pct    = (change / prev) * 100;
     const dir    = change > 0 ? 'up' : change < 0 ? 'down' : 'flat';
@@ -434,7 +453,9 @@
     document.getElementById('refreshBtn').disabled = true;
     updateSessionBadge();
 
-    await Promise.all(SYMBOLS.map(loadOne));
+    // 先抓加權指數，設好換算基準，再抓其他
+    await loadOne(SYMBOLS.find(s => s.id === 'twii'));
+    await Promise.all(SYMBOLS.filter(s => s.id !== 'twii').map(loadOne));
 
     const twStr = new Date().toLocaleString('zh-TW', {
       timeZone: 'Asia/Taipei',
