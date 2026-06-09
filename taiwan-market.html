@@ -104,7 +104,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter','Noto Sans TC',s
 <script>
 const SYMS=[
   {id:'twii',  yahoo:'%5ETWII',  label:'加權指數',        g:'tw'},
-  {id:'fut',   yahoo:'TWF%3DF',  label:'台指期（含夜盤）', g:'tw'},
+  {id:'fut',   yahoo:'TWF%3DF',  label:'台指期（含夜盤）', g:'tw', useFinMind:true},
   {id:'sp500', yahoo:'%5EGSPC',  label:'S&P 500',         g:'us'},
   {id:'nasdaq',yahoo:'%5EIXIC',  label:'那斯達克 Nasdaq', g:'us'},
   {id:'dow',   yahoo:'%5EDJI',   label:'道瓊 Dow Jones',  g:'us'},
@@ -292,22 +292,92 @@ function setupCrosshair(id,canvas,chart,data,color){
     chart.config.options.plugins.tooltip.enabled=false;
     const ctx=canvas.getContext('2d');
     chart.draw();
+    const ptX=meta.data[closest].x;
+    const ptY=meta.data[closest].y;
     ctx.save();
+    // 垂直線
     ctx.beginPath();
-    ctx.moveTo(meta.data[closest].x,0);
-    ctx.lineTo(meta.data[closest].x,canvas.height);
-    ctx.strokeStyle='rgba(255,255,255,0.2)';
+    ctx.moveTo(ptX,0);
+    ctx.lineTo(ptX,canvas.height);
+    ctx.strokeStyle='rgba(255,255,255,0.15)';
     ctx.lineWidth=1;
     ctx.setLineDash([4,4]);
     ctx.stroke();
+    ctx.setLineDash([]);
+    // 圓點
+    ctx.beginPath();
+    ctx.arc(ptX,ptY,5,0,Math.PI*2);
+    ctx.fillStyle=color;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(ptX,ptY,3,0,Math.PI*2);
+    ctx.fillStyle='#fff';
+    ctx.fill();
     ctx.restore();
   }
 
   function hide(){tt.classList.remove('visible');chart.draw();}
 
-  canvas.addEventListener('touchstart',e=>{e.preventDefault();showTooltip(e.touches[0].clientX);},{passive:false});
-  canvas.addEventListener('touchmove',e=>{e.preventDefault();showTooltip(e.touches[0].clientX);},{passive:false});
-  canvas.addEventListener('touchend',()=>setTimeout(hide,1500));
+  let pinchA=null,pinchB=null;
+  const compEl=document.createElement('div');
+  compEl.style.cssText='position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:12px;font-weight:700;font-family:Inter,monospace;pointer-events:none;opacity:0;transition:opacity .15s;';
+  canvas.parentElement.appendChild(compEl);
+
+  function getIdx(clientX){
+    const rect=canvas.getBoundingClientRect();
+    const x=clientX-rect.left;
+    const meta=chart.getDatasetMeta(0);
+    let closest=0,minDist=Infinity;
+    meta.data.forEach((pt,i)=>{const d=Math.abs(pt.x-x);if(d<minDist){minDist=d;closest=i;}});
+    return closest;
+  }
+
+  function showCompare(){
+    if(pinchA==null||pinchB==null)return;
+    const iA=Math.min(pinchA,pinchB),iB=Math.max(pinchA,pinchB);
+    const vA=data[iA]?.close,vB=data[iB]?.close;
+    if(!vA||!vB)return;
+    const pct=((vB-vA)/vA)*100;
+    const sign=pct>=0?'+':'';
+    const col=pct>=0?'#00d084':'#ff4d6a';
+    compEl.style.color=col;
+    compEl.style.opacity='1';
+    compEl.textContent=`${data[iA].label} → ${data[iB].label}  ${sign}${fmt(pct,2)}%`;
+  }
+
+  canvas.addEventListener('touchstart',e=>{
+    e.preventDefault();
+    if(e.touches.length===1){
+      pinchA=null;pinchB=null;compEl.style.opacity='0';
+      showTooltip(e.touches[0].clientX);
+    } else if(e.touches.length===2){
+      pinchA=getIdx(e.touches[0].clientX);
+      pinchB=getIdx(e.touches[1].clientX);
+      tt.classList.remove('visible');
+      chart.draw();
+      showCompare();
+    }
+  },{passive:false});
+
+  canvas.addEventListener('touchmove',e=>{
+    e.preventDefault();
+    if(e.touches.length===1&&pinchA==null){
+      showTooltip(e.touches[0].clientX);
+    } else if(e.touches.length===2){
+      pinchA=getIdx(e.touches[0].clientX);
+      pinchB=getIdx(e.touches[1].clientX);
+      tt.classList.remove('visible');
+      chart.draw();
+      showCompare();
+    }
+  },{passive:false});
+
+  canvas.addEventListener('touchend',e=>{
+    if(e.touches.length===0){
+      if(pinchA!=null){setTimeout(()=>{compEl.style.opacity='0';pinchA=null;pinchB=null;},2500);}
+      else{setTimeout(hide,1500);}
+    }
+  });
   canvas.addEventListener('mousemove',e=>showTooltip(e.clientX));
   canvas.addEventListener('mouseleave',hide);
 }
@@ -396,6 +466,43 @@ function applyCard(id,meta){
   document.getElementById('pc-'+id).textContent=fmt(prev,0);
 }
 
+async function fetchFinMindFut(){
+  try{
+    const url='https://api.finmindtrade.com/api/v4/data?dataset=TaiwanFutOptTickInfo';
+    const res=await fetch(url,{headers:{Accept:'application/json'}});
+    if(!res.ok)return null;
+    const json=await res.json();
+    // 找台指期近月 TX 開頭
+    const rows=json?.data||[];
+    const tx=rows.find(r=>r.code&&r.code.startsWith('TX')&&r.code.length<=5);
+    if(!tx)return null;
+    return{
+      price:parseFloat(tx.Close||tx.close||0),
+      prev:parseFloat(tx.ReferencePrice||tx.reference_price||tx.yesterday_price||0),
+      open:parseFloat(tx.Open||tx.open||tx.Close||0),
+      high:parseFloat(tx.High||tx.high||tx.Close||0),
+      low:parseFloat(tx.Low||tx.low||tx.Close||0),
+    };
+  }catch(e){return null;}
+}
+
+function applyCardRaw(id,price,prev,open,high,low){
+  const card=document.getElementById('card-'+id);
+  if(!price||!prev)return;
+  const change=price-prev,pct=(change/prev)*100;
+  const dir=change>0?'up':change<0?'down':'flat';
+  const sign=change>=0?'+':'';
+  card.className=`card ${dir}${card.classList.contains('expanded')?' expanded':''}`;
+  const pel=document.getElementById('p-'+id);
+  pel.textContent=fmt(price,0);pel.classList.remove('ph');
+  document.getElementById('pct-'+id).textContent=`${sign}${fmt(pct,2)}%`;
+  document.getElementById('abs-'+id).textContent=`${sign}${fmt(change,0)}`;
+  document.getElementById('o-'+id).textContent=fmt(open,0);
+  document.getElementById('h-'+id).textContent=fmt(high,0);
+  document.getElementById('l-'+id).textContent=fmt(low,0);
+  document.getElementById('pc-'+id).textContent=fmt(prev,0);
+}
+
 async function loadAll(){
   document.getElementById('refreshBtn').innerHTML='<span class="spinning">↻</span> 更新中';
   document.getElementById('refreshBtn').disabled=true;
@@ -405,8 +512,19 @@ async function loadAll(){
   badge.textContent=bmap[s][0];badge.className='session-badge '+bmap[s][1];
 
   await Promise.all(SYMS.map(async sym=>{
-    const d=await fetchQuote(sym.yahoo);
-    if(d?.chart?.result?.[0]) applyCard(sym.id,d.chart.result[0].meta);
+    if(sym.useFinMind){
+      // 台指期：優先用 FinMind，失敗才 fallback Yahoo
+      const finData=await fetchFinMindFut();
+      if(finData){
+        applyCardRaw(sym.id, finData.price, finData.prev, finData.open, finData.high, finData.low);
+      } else {
+        const d=await fetchQuote(sym.yahoo);
+        if(d?.chart?.result?.[0]) applyCard(sym.id,d.chart.result[0].meta);
+      }
+    } else {
+      const d=await fetchQuote(sym.yahoo);
+      if(d?.chart?.result?.[0]) applyCard(sym.id,d.chart.result[0].meta);
+    }
     // 若已展開則重新載入圖表
     const card=document.getElementById('card-'+sym.id);
     if(card.classList.contains('expanded')) loadChart(sym.id,sym.yahoo,activeRange[sym.id]);
