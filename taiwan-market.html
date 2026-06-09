@@ -468,21 +468,25 @@ function applyCard(id,meta){
 
 async function fetchFinMindFut(){
   try{
-    const url='https://api.finmindtrade.com/api/v4/data?dataset=TaiwanFutOptTickInfo';
+    // 台灣期交所官方 API，透過 Cloudflare Worker 轉
+    const url='https://yahoo-proxy.tomhsu8338.workers.dev/?taifex=1';
     const res=await fetch(url,{headers:{Accept:'application/json'}});
     if(!res.ok)return null;
     const json=await res.json();
-    // 找台指期近月 TX 開頭
-    const rows=json?.data||[];
-    const tx=rows.find(r=>r.code&&r.code.startsWith('TX')&&r.code.length<=5);
+    // 期交所回傳格式：rtList 陣列，找台指期近月 TXFB0 或 TXF00
+    const rows=json?.rtList||json?.data||[];
+    const tx=rows.find(r=>{
+      const code=r.CID||r.code||r.contractCode||'';
+      return code.startsWith('TXF')&&!code.includes('O');
+    });
     if(!tx)return null;
-    return{
-      price:parseFloat(tx.Close||tx.close||0),
-      prev:parseFloat(tx.ReferencePrice||tx.reference_price||tx.yesterday_price||0),
-      open:parseFloat(tx.Open||tx.open||tx.Close||0),
-      high:parseFloat(tx.High||tx.high||tx.Close||0),
-      low:parseFloat(tx.Low||tx.low||tx.Close||0),
-    };
+    const price=parseFloat(tx.CLO||tx.close||tx.lastPrice||0);
+    const prev=parseFloat(tx.REF||tx.yesterday||tx.prevClose||0);
+    const open=parseFloat(tx.OPE||tx.open||price||0);
+    const high=parseFloat(tx.HIG||tx.high||price||0);
+    const low=parseFloat(tx.LOW||tx.low||price||0);
+    if(!price||!prev)return null;
+    return{price,prev,open,high,low};
   }catch(e){return null;}
 }
 
