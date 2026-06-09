@@ -216,6 +216,47 @@ async function loadChart(id,yahoo,idx){
   const labels=data.map(d=>d.label);
   const values=data.map(d=>d.close);
 
+  // crosshair state
+  const state={activeIdx:null};
+
+  const crosshairPlugin={
+    id:'crosshair_'+id,
+    afterDraw(chart){
+      if(state.activeIdx===null)return;
+      const meta=chart.getDatasetMeta(0);
+      const pt=meta.data[state.activeIdx];
+      if(!pt)return;
+      const ctx=chart.ctx;
+      const{top,bottom}=chart.chartArea;
+      ctx.save();
+      // 垂直線
+      ctx.beginPath();
+      ctx.moveTo(pt.x,top);
+      ctx.lineTo(pt.x,bottom);
+      ctx.strokeStyle='rgba(255,255,255,0.2)';
+      ctx.lineWidth=1;
+      ctx.setLineDash([4,4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // 外圈
+      ctx.beginPath();
+      ctx.arc(pt.x,pt.y,6,0,Math.PI*2);
+      ctx.fillStyle=color+'55';
+      ctx.fill();
+      // 內圈
+      ctx.beginPath();
+      ctx.arc(pt.x,pt.y,3.5,0,Math.PI*2);
+      ctx.fillStyle=color;
+      ctx.fill();
+      // 白點
+      ctx.beginPath();
+      ctx.arc(pt.x,pt.y,1.5,0,Math.PI*2);
+      ctx.fillStyle='#fff';
+      ctx.fill();
+      ctx.restore();
+    }
+  };
+
   chartInstances[id]=new Chart(canvas,{
     type:'line',
     data:{
@@ -236,6 +277,7 @@ async function loadChart(id,yahoo,idx){
         tension:0.1,
       }]
     },
+    plugins:[crosshairPlugin],
     options:{
       responsive:true,
       maintainAspectRatio:false,
@@ -271,66 +313,43 @@ function setupCrosshair(id,canvas,chart,data,color){
   const ttTime=document.getElementById('tt-time-'+id);
   const ttVal=document.getElementById('tt-val-'+id);
 
-  function showTooltip(clientX){
+  function getClosestIdx(clientX){
     const rect=canvas.getBoundingClientRect();
     const x=clientX-rect.left;
     const meta=chart.getDatasetMeta(0);
-    if(!meta.data.length)return;
-    // 找最近的點
+    if(!meta.data.length)return 0;
     let closest=0,minDist=Infinity;
     meta.data.forEach((pt,i)=>{
       const dist=Math.abs(pt.x-x);
       if(dist<minDist){minDist=dist;closest=i;}
     });
+    return closest;
+  }
+
+  function showTooltip(clientX){
+    const closest=getClosestIdx(clientX);
     const d=data[closest];
     if(!d)return;
+    state.activeIdx=closest;
     ttTime.textContent=d.label;
     ttVal.textContent=fmt(d.close,2);
     ttVal.style.color=color;
     tt.classList.add('visible');
-    // 畫垂直線
-    chart.config.options.plugins.tooltip.enabled=false;
-    const ctx=canvas.getContext('2d');
-    chart.draw();
-    const ptX=meta.data[closest].x;
-    const ptY=meta.data[closest].y;
-    ctx.save();
-    // 垂直線
-    ctx.beginPath();
-    ctx.moveTo(ptX,0);
-    ctx.lineTo(ptX,canvas.height);
-    ctx.strokeStyle='rgba(255,255,255,0.15)';
-    ctx.lineWidth=1;
-    ctx.setLineDash([4,4]);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    // 圓點
-    ctx.beginPath();
-    ctx.arc(ptX,ptY,5,0,Math.PI*2);
-    ctx.fillStyle=color;
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(ptX,ptY,3,0,Math.PI*2);
-    ctx.fillStyle='#fff';
-    ctx.fill();
-    ctx.restore();
+    chart.update('none');
   }
 
-  function hide(){tt.classList.remove('visible');chart.draw();}
+  function hide(){
+    state.activeIdx=null;
+    tt.classList.remove('visible');
+    chart.update('none');
+  }
 
   let pinchA=null,pinchB=null;
   const compEl=document.createElement('div');
   compEl.style.cssText='position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:12px;font-weight:700;font-family:Inter,monospace;pointer-events:none;opacity:0;transition:opacity .15s;';
   canvas.parentElement.appendChild(compEl);
 
-  function getIdx(clientX){
-    const rect=canvas.getBoundingClientRect();
-    const x=clientX-rect.left;
-    const meta=chart.getDatasetMeta(0);
-    let closest=0,minDist=Infinity;
-    meta.data.forEach((pt,i)=>{const d=Math.abs(pt.x-x);if(d<minDist){minDist=d;closest=i;}});
-    return closest;
-  }
+  function getIdx(clientX){return getClosestIdx(clientX);}
 
   function showCompare(){
     if(pinchA==null||pinchB==null)return;
