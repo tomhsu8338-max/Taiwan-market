@@ -213,10 +213,14 @@ function renderChart(id,tvSym,idx){
 
 async function fetchQuote(sym){
   const ts=Date.now();
+  // v8 chart API + includePrePost=true 取得盤前盤後
+  const base=`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=1d&includePrePost=true&_=${ts}`;
+  const base2=`https://query2.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=1d&includePrePost=true&_=${ts}`;
   const urls=[
-    `https://yahoo-proxy.tomhsu8338.workers.dev/?symbol=${sym}&_=${ts}`,
-    `https://corsproxy.io/?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=1d&_=${ts}`)}`,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://query2.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=1d&_=${ts}`)}`,
+    `https://yahoo-proxy.tomhsu8338.workers.dev/?symbol=${sym}&extra=includePrePost%3Dtrue&_=${ts}`,
+    `https://corsproxy.io/?url=${encodeURIComponent(base)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(base)}`,
+    `https://corsproxy.io/?url=${encodeURIComponent(base2)}`,
   ];
   for(const url of urls){
     try{
@@ -236,22 +240,43 @@ async function fetchTVPrice(tvSym){
   return await fetchQuote(futSym);
 }
 
-function applyCard(id, meta, override={}){
+function applyCard(id, meta){
   const card=document.getElementById('card-'+id);
   if(!meta)return;
-  let price=override.price??meta.regularMarketPrice;
-  let prev=override.prev??meta.chartPreviousClose;
-  let open=meta.regularMarketOpen??price;
-  let high=meta.regularMarketDayHigh??price;
-  let low=meta.regularMarketDayLow??price;
-  const change=price-prev,pct=(change/prev)*100;
+
+  const regular=meta.regularMarketPrice;
+  const prev=meta.chartPreviousClose;
+  const open=meta.regularMarketOpen??regular;
+  const high=meta.regularMarketDayHigh??regular;
+  const low=meta.regularMarketDayLow??regular;
+
+  // 判斷現在顯示哪個價格：盤前/盤後/正常
+  const prePrice=meta.preMarketPrice;
+  const postPrice=meta.postMarketPrice;
+  const preTime=meta.preMarketTime;
+  const postTime=meta.postMarketTime;
+  const now=Math.floor(Date.now()/1000);
+
+  let displayPrice=regular;
+  let tag='';
+  // postMarket：收盤後有資料且比較新
+  if(postPrice && postTime && (now-postTime)<43200){
+    displayPrice=postPrice; tag=' 盤後';
+  }
+  // preMarket：開盤前有資料且比較新
+  if(prePrice && preTime && (now-preTime)<43200){
+    displayPrice=prePrice; tag=' 盤前';
+  }
+
+  const change=displayPrice-prev, pct=(change/prev)*100;
   const dir=change>0?'up':change<0?'down':'flat';
   const sign=change>=0?'+':'';
+
   card.className=`card ${dir}${card.classList.contains('expanded')?' expanded':''}`;
   const pel=document.getElementById('p-'+id);
-  pel.textContent=fmt(price,2);pel.classList.remove('ph');
+  pel.textContent=fmt(displayPrice,2); pel.classList.remove('ph');
   document.getElementById('pct-'+id).textContent=`${sign}${fmt(pct,2)}%`;
-  document.getElementById('abs-'+id).textContent=`${sign}${fmt(change,2)}`;
+  document.getElementById('abs-'+id).textContent=`${sign}${fmt(change,2)}${tag}`;
   document.getElementById('o-'+id).textContent=fmt(open,0);
   document.getElementById('h-'+id).textContent=fmt(high,0);
   document.getElementById('l-'+id).textContent=fmt(low,0);
