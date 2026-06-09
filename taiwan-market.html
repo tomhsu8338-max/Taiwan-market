@@ -416,10 +416,14 @@
     updateSessionBadge();
 
     try {
-      const [twiiData, futData] = await Promise.all([
-        fetchQuote('%5ETWII'),
-        fetchQuote('TWF%3DF')
-      ]);
+      // 台指期嘗試多個代號
+      const twiiData = await fetchQuote('%5ETWII');
+      let futData = null;
+      for (const sym of ['FITX%3DF', 'TWF%3DF', '^TWII']) {
+        if (sym === '^TWII') break;
+        futData = await fetchQuote(sym);
+        if (futData) break;
+      }
 
       if (twiiData) {
         applyCard('twiiCard', twiiData);
