@@ -6,374 +6,296 @@
 <title>盤況總覽</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Noto+Sans+TC:wght@300;400;700&display=swap');
-  * { margin:0; padding:0; box-sizing:border-box; }
-  :root {
-    --bg:#0a0e14; --surface:#111820; --surface2:#161f2c;
-    --border:#1e2a38; --text:#e8edf2; --muted:#4a6070;
-    --up:#00d084; --down:#ff4d6a; --flat:#7a9bb5; --accent:#1d8cff;
+  *{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --bg:#0a0e14;--surface:#111820;--surface2:#0e1520;
+    --border:#1e2a38;--text:#e8edf2;--muted:#4a6070;
+    --up:#00d084;--down:#ff4d6a;--flat:#7a9bb5;--accent:#1d8cff;
   }
-  body {
-    background:var(--bg); color:var(--text);
-    font-family:'Inter','Noto Sans TC',sans-serif;
-    min-height:100vh; padding:24px 14px 48px;
-    display:flex; flex-direction:column; align-items:center;
-  }
-  .header { text-align:center; margin-bottom:20px; }
-  .header-title { font-size:12px; letter-spacing:.15em; color:var(--muted); text-transform:uppercase; }
-  .session-badge {
-    display:inline-block; margin-top:6px; padding:3px 10px;
-    border-radius:20px; font-size:11px; font-weight:600;
-    letter-spacing:.08em; border:1px solid;
-  }
-  .session-badge.night { color:#a78bfa; border-color:#a78bfa44; background:#a78bfa11; }
-  .session-badge.day   { color:#fbbf24; border-color:#fbbf2444; background:#fbbf2411; }
-  .session-badge.closed{ color:var(--muted); border-color:var(--muted); background:transparent; }
-
-  .section-label {
-    width:100%; max-width:390px;
-    font-size:10px; letter-spacing:.12em; color:var(--muted);
-    text-transform:uppercase; font-weight:600;
-    margin:18px 0 8px; padding-left:4px;
-  }
-  .cards { display:flex; flex-direction:column; gap:8px; width:100%; max-width:390px; }
-
-  .card {
-    background:var(--surface); border:1px solid var(--border);
-    border-radius:14px; overflow:hidden; cursor:pointer;
-    transition:border-color .2s;
-  }
-  .card:active { transform:scale(.99); }
-  .card.expanded { border-color:#2a3a50; }
-
-  .card-top { padding:14px 16px; position:relative; }
-  .card-top::before {
-    content:''; position:absolute; top:0; left:0; right:0;
-    height:2px; border-radius:14px 14px 0 0;
-  }
-  .card.up .card-top::before    { background:var(--up); }
-  .card.down .card-top::before  { background:var(--down); }
-  .card.flat .card-top::before  { background:var(--flat); }
-  .card.loading .card-top::before { background:var(--border); }
-
-  .card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
-  .card-label { font-size:10px; color:var(--muted); letter-spacing:.1em; text-transform:uppercase; font-weight:600; }
-  .expand-icon { font-size:10px; color:var(--muted); transition:transform .3s; }
-  .card.expanded .expand-icon { transform:rotate(180deg); }
-
-  .card-main { display:flex; align-items:flex-end; justify-content:space-between; }
-  .price {
-    font-size:28px; font-weight:700; font-family:'Inter',monospace;
-    letter-spacing:-.5px; line-height:1;
-  }
-  .price.loading-text { color:var(--border); animation:pulse 1.4s ease-in-out infinite; }
-  .change-group { text-align:right; }
-  .change-pct { font-size:17px; font-weight:700; font-family:'Inter',monospace; line-height:1; }
-  .change-abs { font-size:11px; color:var(--muted); margin-top:3px; font-family:'Inter',monospace; }
-
-  .card.up .price, .card.up .change-pct   { color:var(--up); }
-  .card.down .price, .card.down .change-pct { color:var(--down); }
-  .card.flat .price, .card.flat .change-pct { color:var(--flat); }
-  .card.loading .price { color:var(--border); }
-
-  .card-footer {
-    margin-top:10px; padding-top:10px;
-    border-top:1px solid var(--border);
-    display:flex; justify-content:space-between;
-  }
-  .footer-item { text-align:center; }
-  .footer-label { font-size:9px; color:var(--muted); letter-spacing:.08em; margin-bottom:2px; }
-  .footer-val { font-size:12px; font-family:'Inter',monospace; color:var(--text); font-weight:500; }
-
-  /* 走勢圖區塊 */
-  .chart-section {
-    display:none; border-top:1px solid var(--border);
-    background:var(--surface2);
-  }
-  .card.expanded .chart-section { display:block; }
-
-  .range-tabs {
-    display:flex; padding:10px 12px 0;
-    gap:4px; overflow-x:auto;
-    scrollbar-width:none;
-  }
-  .range-tabs::-webkit-scrollbar { display:none; }
-  .range-btn {
-    background:transparent; border:1px solid var(--border);
-    color:var(--muted); padding:4px 10px; border-radius:99px;
-    font-size:11px; font-family:'Inter',sans-serif;
-    cursor:pointer; white-space:nowrap; transition:all .15s;
-    flex-shrink:0;
-  }
-  .range-btn.active {
-    background:var(--accent); border-color:var(--accent);
-    color:#fff; font-weight:600;
-  }
-
-  .chart-wrap {
-    height:220px; margin:10px 0 0;
-    position:relative;
-  }
-  .chart-wrap iframe {
-    width:100%; height:100%; border:none; display:block;
-  }
-  .chart-loading {
-    position:absolute; inset:0;
-    display:flex; align-items:center; justify-content:center;
-    color:var(--muted); font-size:12px; background:var(--surface2);
-  }
-
-  .refresh-btn {
-    margin-top:24px; background:transparent;
-    border:1px solid var(--border); color:var(--muted);
-    padding:10px 28px; border-radius:99px;
-    font-size:13px; font-family:'Inter','Noto Sans TC',sans-serif;
-    cursor:pointer;
-  }
-  .refresh-btn:active { transform:scale(.97); }
-  .last-update { margin-top:12px; font-size:11px; color:var(--muted); text-align:center; }
-
-  .spinning { display:inline-block; animation:spin 1s linear infinite; }
-  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-  @keyframes pulse { 0%,100%{opacity:.3} 50%{opacity:.7} }
+  body{background:var(--bg);color:var(--text);font-family:'Inter','Noto Sans TC',sans-serif;
+    min-height:100vh;padding:24px 14px 48px;display:flex;flex-direction:column;align-items:center;}
+  .header{text-align:center;margin-bottom:20px;}
+  .header-title{font-size:12px;letter-spacing:.15em;color:var(--muted);text-transform:uppercase;}
+  .session-badge{display:inline-block;margin-top:6px;padding:3px 10px;border-radius:20px;
+    font-size:11px;font-weight:600;letter-spacing:.08em;border:1px solid;}
+  .session-badge.night{color:#a78bfa;border-color:#a78bfa44;background:#a78bfa11;}
+  .session-badge.day{color:#fbbf24;border-color:#fbbf2444;background:#fbbf2411;}
+  .session-badge.closed{color:var(--muted);border-color:var(--muted);background:transparent;}
+  .section-label{width:100%;max-width:390px;font-size:10px;letter-spacing:.12em;color:var(--muted);
+    text-transform:uppercase;font-weight:600;margin:18px 0 8px;padding-left:4px;}
+  .cards{display:flex;flex-direction:column;gap:8px;width:100%;max-width:390px;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+  .card-top{padding:14px 16px;position:relative;cursor:pointer;}
+  .card-top::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:14px 14px 0 0;}
+  .card.up .card-top::before{background:var(--up);}
+  .card.down .card-top::before{background:var(--down);}
+  .card.flat .card-top::before{background:var(--flat);}
+  .card.loading .card-top::before{background:var(--border);}
+  .card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .card-label{font-size:10px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;font-weight:600;}
+  .expand-arrow{font-size:10px;color:var(--muted);transition:transform .25s;}
+  .card.expanded .expand-arrow{transform:rotate(180deg);}
+  .card-main{display:flex;align-items:flex-end;justify-content:space-between;}
+  .price{font-size:28px;font-weight:700;font-family:'Inter',monospace;letter-spacing:-.5px;line-height:1;}
+  .price.ph{color:var(--border);animation:pulse 1.4s ease-in-out infinite;}
+  .change-group{text-align:right;}
+  .change-pct{font-size:17px;font-weight:700;font-family:'Inter',monospace;line-height:1;}
+  .change-abs{font-size:11px;color:var(--muted);margin-top:3px;font-family:'Inter',monospace;}
+  .card.up .price,.card.up .change-pct{color:var(--up);}
+  .card.down .price,.card.down .change-pct{color:var(--down);}
+  .card.flat .price,.card.flat .change-pct{color:var(--flat);}
+  .card-footer{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;}
+  .fi{text-align:center;}
+  .fl{font-size:9px;color:var(--muted);letter-spacing:.08em;margin-bottom:2px;}
+  .fv{font-size:12px;font-family:'Inter',monospace;color:var(--text);font-weight:500;}
+  /* chart */
+  .chart-panel{display:none;border-top:1px solid var(--border);background:var(--surface2);}
+  .card.expanded .chart-panel{display:block;}
+  .range-tabs{display:flex;padding:8px 10px 0;gap:4px;overflow-x:auto;scrollbar-width:none;}
+  .range-tabs::-webkit-scrollbar{display:none;}
+  .rb{background:transparent;border:1px solid var(--border);color:var(--muted);
+    padding:4px 10px;border-radius:99px;font-size:11px;font-family:'Inter',sans-serif;
+    cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s;}
+  .rb.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
+  .chart-container{height:240px;margin:8px 0 0;position:relative;}
+  .chart-container .tradingview-widget-container{height:100%!important;}
+  .chart-container iframe{width:100%!important;height:100%!important;}
+  /* bottom */
+  .refresh-btn{margin-top:24px;background:transparent;border:1px solid var(--border);
+    color:var(--muted);padding:10px 28px;border-radius:99px;font-size:13px;
+    font-family:'Inter','Noto Sans TC',sans-serif;cursor:pointer;}
+  .refresh-btn:active{transform:scale(.97);}
+  .last-update{margin-top:12px;font-size:11px;color:var(--muted);text-align:center;}
+  .spinning{display:inline-block;animation:spin 1s linear infinite;}
+  @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+  @keyframes pulse{0%,100%{opacity:.3}50%{opacity:.7}}
 </style>
 </head>
 <body>
-
 <div class="header">
   <div class="header-title">盤況總覽</div>
   <div class="session-badge" id="sessionBadge">載入中</div>
 </div>
-
 <div class="section-label">🇹🇼 台灣</div>
-<div class="cards" id="tw-cards"></div>
-
+<div class="cards" id="g-tw"></div>
 <div class="section-label">🇺🇸 美國</div>
-<div class="cards" id="us-cards"></div>
-
+<div class="cards" id="g-us"></div>
 <div class="section-label">🌐 其他</div>
-<div class="cards" id="other-cards"></div>
-
+<div class="cards" id="g-other"></div>
 <button class="refresh-btn" id="refreshBtn" onclick="loadAll()">↻ 重新整理</button>
 <div class="last-update" id="lastUpdate"></div>
 
 <script>
-// TradingView symbol mapping
-const SYMBOLS = [
-  // 台灣
-  { id:'twii',   yahoo:'%5ETWII',   tv:'TWSE:TAIWANINDEX', label:'加權指數',        group:'tw' },
-  { id:'fut',    yahoo:'IX0126.TW', tv:'TAIFEX:TXF1!',     label:'台指期（含夜盤）', group:'tw', isFut:true },
-  // 美國
-  { id:'sp500',  yahoo:'%5EGSPC',   tv:'SP:SPX',           label:'S&P 500',         group:'us' },
-  { id:'nasdaq', yahoo:'%5EIXIC',   tv:'NASDAQ:IXIC',      label:'那斯達克 Nasdaq', group:'us' },
-  { id:'dow',    yahoo:'%5EDJI',    tv:'DJ:DJI',           label:'道瓊 Dow Jones',  group:'us' },
-  { id:'sox',    yahoo:'%5ESOX',    tv:'PHLX:SOX',         label:'費城半導體 SOX',  group:'us' },
-  // 其他
-  { id:'gold',   yahoo:'GC%3DF',    tv:'COMEX:GC1!',       label:'黃金 Gold',       group:'other' },
-  { id:'vix',    yahoo:'%5EVIX',    tv:'CBOE:VIX',         label:'恐慌指數 VIX',    group:'other' },
+const SYMS = [
+  {id:'twii',  yahoo:'%5ETWII',  tv:'TWSE:IX0001',   label:'加權指數',        g:'tw'},
+  {id:'fut',   yahoo:'%5ETWII',  tv:'TAIFEX:TXF1!',  label:'台指期（含夜盤）', g:'tw', useTv:true},
+  {id:'sp500', yahoo:'%5EGSPC',  tv:'SP:SPX',         label:'S&P 500',         g:'us'},
+  {id:'nasdaq',yahoo:'%5EIXIC',  tv:'NASDAQ:IXIC',    label:'那斯達克 Nasdaq', g:'us'},
+  {id:'dow',   yahoo:'%5EDJI',   tv:'DJ:DJI',         label:'道瓊 Dow Jones',  g:'us'},
+  {id:'sox',   yahoo:'%5ESOX',   tv:'PHLX:SOX',       label:'費城半導體 SOX',  g:'us'},
+  {id:'gold',  yahoo:'GC%3DF',   tv:'COMEX:GC1!',     label:'黃金 Gold',       g:'other'},
+  {id:'vix',   yahoo:'%5EVIX',   tv:'CBOE:VIX',       label:'恐慌指數 VIX',    g:'other'},
 ];
 
+// TradingView range config
 const RANGES = [
-  { label:'1天', tv:'1D',  interval:'5' },
-  { label:'1週', tv:'5D',  interval:'15' },
-  { label:'1月', tv:'1M',  interval:'60' },
-  { label:'3月', tv:'3M',  interval:'D' },
-  { label:'今年', tv:'YTD', interval:'D' },
-  { label:'1年', tv:'12M', interval:'W' },
-  { label:'5年', tv:'60M', interval:'W' },
+  {label:'1天', range:'1D', interval:'5'},
+  {label:'1週', range:'5D', interval:'15'},
+  {label:'1月', range:'1M', interval:'60'},
+  {label:'3月', range:'3M', interval:'D'},
+  {label:'今年', range:'YTD',interval:'D'},
+  {label:'1年', range:'12M',interval:'W'},
+  {label:'5年', range:'60M',interval:'W'},
 ];
 
-let twiiPrevClose = null;
-const activeRange = {}; // per card
+const activeRange = {};
+let tvWidgets = {};
 
-function fmt(n, dec=2) {
-  if (n==null||isNaN(n)) return '—';
-  return Number(n).toLocaleString('zh-TW',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+function fmt(n,d=2){
+  if(n==null||isNaN(n))return'—';
+  return Number(n).toLocaleString('zh-TW',{minimumFractionDigits:d,maximumFractionDigits:d});
+}
+function getSession(){
+  const tw=new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Taipei'}));
+  const t=tw.getHours()*60+tw.getMinutes(),d=tw.getDay();
+  if(d===0||d===6)return'closed';
+  if(t>=540&&t<=825)return'day';
+  if(t>=900||t<=300)return'night';
+  return'closed';
 }
 
-function getSession() {
-  const tw = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Taipei'}));
-  const t = tw.getHours()*60+tw.getMinutes(), d=tw.getDay();
-  if(d===0||d===6) return 'closed';
-  if(t>=540&&t<=825) return 'day';
-  if(t>=900||t<=300) return 'night';
-  return 'closed';
-}
-
-function buildCard(sym) {
-  const div = document.createElement('div');
-  div.className = 'card loading';
-  div.id = 'card-'+sym.id;
-  div.innerHTML = `
-    <div class="card-top" onclick="toggleChart('${sym.id}')">
+function buildCard(s){
+  const wrap=document.createElement('div');
+  wrap.className='card loading';wrap.id='card-'+s.id;
+  const tabsHtml=RANGES.map((r,i)=>`<button class="rb${i===0?' active':''}" onclick="setRange('${s.id}','${s.tv}',${i});event.stopPropagation()">${r.label}</button>`).join('');
+  wrap.innerHTML=`
+    <div class="card-top" onclick="toggleCard('${s.id}','${s.tv}')">
       <div class="card-header">
-        <div class="card-label">${sym.label}</div>
-        <div class="expand-icon">▼</div>
+        <div class="card-label">${s.label}</div>
+        <div class="expand-arrow">▼</div>
       </div>
       <div class="card-main">
-        <div class="price loading-text" id="price-${sym.id}">—</div>
+        <div class="price ph" id="p-${s.id}">—</div>
         <div class="change-group">
-          <div class="change-pct" id="pct-${sym.id}">—%</div>
-          <div class="change-abs" id="abs-${sym.id}">—</div>
+          <div class="change-pct" id="pct-${s.id}">—%</div>
+          <div class="change-abs" id="abs-${s.id}">—</div>
         </div>
       </div>
       <div class="card-footer">
-        <div class="footer-item"><div class="footer-label">開盤</div><div class="footer-val" id="open-${sym.id}">—</div></div>
-        <div class="footer-item"><div class="footer-label">最高</div><div class="footer-val" id="high-${sym.id}">—</div></div>
-        <div class="footer-item"><div class="footer-label">最低</div><div class="footer-val" id="low-${sym.id}">—</div></div>
-        <div class="footer-item"><div class="footer-label">昨收</div><div class="footer-val" id="prev-${sym.id}">—</div></div>
+        <div class="fi"><div class="fl">開盤</div><div class="fv" id="o-${s.id}">—</div></div>
+        <div class="fi"><div class="fl">最高</div><div class="fv" id="h-${s.id}">—</div></div>
+        <div class="fi"><div class="fl">最低</div><div class="fv" id="l-${s.id}">—</div></div>
+        <div class="fi"><div class="fl">昨收</div><div class="fv" id="pc-${s.id}">—</div></div>
       </div>
     </div>
-    <div class="chart-section" id="chart-${sym.id}">
-      <div class="range-tabs" id="tabs-${sym.id}"></div>
-      <div class="chart-wrap" id="wrap-${sym.id}">
-        <div class="chart-loading">載入中...</div>
-      </div>
+    <div class="chart-panel" id="cp-${s.id}">
+      <div class="range-tabs">${tabsHtml}</div>
+      <div class="chart-container" id="cc-${s.id}"></div>
     </div>`;
-
-  const group = sym.group==='tw'?'tw-cards':sym.group==='us'?'us-cards':'other-cards';
-  document.getElementById(group).appendChild(div);
-
-  // build range tabs
-  const tabs = div.querySelector(`#tabs-${sym.id}`);
-  RANGES.forEach((r,i) => {
-    const btn = document.createElement('button');
-    btn.className = 'range-btn' + (i===0?' active':'');
-    btn.textContent = r.label;
-    btn.onclick = (e) => { e.stopPropagation(); setRange(sym.id, sym.tv, i); };
-    tabs.appendChild(btn);
-  });
-  activeRange[sym.id] = 0;
+  document.getElementById('g-'+s.g).appendChild(wrap);
+  activeRange[s.id]=0;
 }
 
-function toggleChart(id) {
-  const card = document.getElementById('card-'+id);
-  const isExpanded = card.classList.contains('expanded');
-  if (!isExpanded) {
-    card.classList.add('expanded');
-    const sym = SYMBOLS.find(s=>s.id===id);
-    loadChart(id, sym.tv, activeRange[id]);
+function toggleCard(id,tvSym){
+  const card=document.getElementById('card-'+id);
+  const open=card.classList.contains('expanded');
+  if(!open){card.classList.add('expanded');renderChart(id,tvSym,activeRange[id]);}
+  else card.classList.remove('expanded');
+}
+
+function setRange(id,tvSym,idx){
+  activeRange[id]=idx;
+  document.querySelectorAll(`#cp-${id} .rb`).forEach((b,i)=>b.classList.toggle('active',i===idx));
+  renderChart(id,tvSym,idx);
+}
+
+function renderChart(id,tvSym,idx){
+  const cc=document.getElementById('cc-'+id);
+  cc.innerHTML='';
+  const r=RANGES[idx];
+  const cid='tv_'+id+'_'+Date.now();
+  const div=document.createElement('div');
+  div.id=cid; div.style.height='240px';
+  cc.appendChild(div);
+
+  const script=document.createElement('script');
+  script.src='https://s3.tradingview.com/tv.js';
+  script.onload=()=>{
+    if(window.TradingView){
+      new TradingView.widget({
+        container_id:cid,
+        symbol:tvSym,
+        interval:r.interval,
+        range:r.range,
+        theme:'dark',
+        style:'1',
+        locale:'zh_TW',
+        toolbar_bg:'#0e1520',
+        enable_publishing:false,
+        hide_top_toolbar:true,
+        hide_legend:false,
+        save_image:false,
+        autosize:true,
+        backgroundColor:'rgba(14,21,32,1)',
+        gridColor:'rgba(30,42,56,0.4)',
+        hide_volume:true,
+        withdateranges:false,
+      });
+    }
+  };
+  // 如果 tv.js 已載入就直接跑
+  if(window.TradingView){
+    script.onload();
   } else {
-    card.classList.remove('expanded');
+    document.head.appendChild(script);
   }
 }
 
-function setRange(id, tvSym, rangeIdx) {
-  activeRange[id] = rangeIdx;
-  const tabs = document.querySelectorAll(`#tabs-${id} .range-btn`);
-  tabs.forEach((b,i) => b.classList.toggle('active', i===rangeIdx));
-  loadChart(id, tvSym, rangeIdx);
-}
-
-function loadChart(id, tvSym, rangeIdx) {
-  const wrap = document.getElementById('wrap-'+id);
-  const r = RANGES[rangeIdx];
-  wrap.innerHTML = '<div class="chart-loading">載入中...</div>';
-
-  const params = new URLSearchParams({
-    symbol: tvSym,
-    interval: r.interval,
-    range: r.tv,
-    theme: 'dark',
-    style: '1',
-    locale: 'zh_TW',
-    toolbar_bg: '#161f2c',
-    enable_publishing: 'false',
-    hide_top_toolbar: 'true',
-    hide_legend: 'false',
-    save_image: 'false',
-    container_id: 'tv_'+id,
-    autosize: 'true',
-    backgroundColor: 'rgba(17,24,32,1)',
-    gridColor: 'rgba(30,42,56,0.5)',
-    hide_volume: 'true',
-  });
-
-  const iframe = document.createElement('iframe');
-  iframe.src = `https://s.tradingview.com/widgetembed/?${params}`;
-  iframe.onload = () => {};
-  wrap.innerHTML = '';
-  wrap.appendChild(iframe);
-}
-
-async function fetchQuote(symbol) {
-  const ts = Date.now();
-  const proxies = [
-    `https://yahoo-proxy.tomhsu8338.workers.dev/?symbol=${symbol}&_=${ts}`,
-    `https://corsproxy.io/?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d&_=${ts}`)}`,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d&_=${ts}`)}`,
+async function fetchQuote(sym){
+  const ts=Date.now();
+  const urls=[
+    `https://yahoo-proxy.tomhsu8338.workers.dev/?symbol=${sym}&_=${ts}`,
+    `https://corsproxy.io/?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=1d&_=${ts}`)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://query2.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=1d&_=${ts}`)}`,
   ];
-  for (const url of proxies) {
-    try {
-      const res = await fetch(url, {headers:{Accept:'application/json'}});
-      if (!res.ok) continue;
-      const data = JSON.parse(await res.text());
-      if (data?.chart?.result?.[0]) return data;
-    } catch { continue; }
+  for(const url of urls){
+    try{
+      const res=await fetch(url,{headers:{Accept:'application/json'}});
+      if(!res.ok)continue;
+      const d=JSON.parse(await res.text());
+      if(d?.chart?.result?.[0])return d;
+    }catch{continue;}
   }
   return null;
 }
 
-function applyCard(sym, data) {
-  const card = document.getElementById('card-'+sym.id);
-  const meta = data?.chart?.result?.[0]?.meta;
-  if (!meta) return;
-
-  let price = meta.regularMarketPrice;
-  let prev  = meta.chartPreviousClose;
-  let open  = meta.regularMarketOpen  ?? price;
-  let high  = meta.regularMarketDayHigh ?? price;
-  let low   = meta.regularMarketDayLow  ?? price;
-
-  if (sym.id==='twii') twiiPrevClose = prev;
-
-  // 台指期換算
-  if (sym.isFut && twiiPrevClose && prev) {
-    const ratio = twiiPrevClose / prev;
-    price*=ratio; prev*=ratio; open*=ratio; high*=ratio; low*=ratio;
-  }
-
-  const change = price-prev, pct=(change/prev)*100;
-  const dir = change>0?'up':change<0?'down':'flat';
-  const sign = change>=0?'+':'';
-
-  card.className = `card ${dir}${card.classList.contains('expanded')?' expanded':''}`;
-  const priceEl = document.getElementById('price-'+sym.id);
-  priceEl.textContent = fmt(price,2);
-  priceEl.classList.remove('loading-text');
-  document.getElementById('pct-'+sym.id).textContent  = `${sign}${fmt(pct,2)}%`;
-  document.getElementById('abs-'+sym.id).textContent  = `${sign}${fmt(change,2)}`;
-  document.getElementById('open-'+sym.id).textContent = fmt(open,0);
-  document.getElementById('high-'+sym.id).textContent = fmt(high,0);
-  document.getElementById('low-'+sym.id).textContent  = fmt(low,0);
-  document.getElementById('prev-'+sym.id).textContent = fmt(prev,0);
+// 台指期夜盤：從TradingView Mini Widget抓即時資料
+async function fetchTVPrice(tvSym){
+  // 用 Yahoo 期貨代號抓
+  const futSym = 'TWF%3DF';
+  return await fetchQuote(futSym);
 }
 
-async function loadOne(sym) {
-  const data = await fetchQuote(sym.yahoo);
-  if (data) applyCard(sym, data);
+function applyCard(id, meta, override={}){
+  const card=document.getElementById('card-'+id);
+  if(!meta)return;
+  let price=override.price??meta.regularMarketPrice;
+  let prev=override.prev??meta.chartPreviousClose;
+  let open=meta.regularMarketOpen??price;
+  let high=meta.regularMarketDayHigh??price;
+  let low=meta.regularMarketDayLow??price;
+  const change=price-prev,pct=(change/prev)*100;
+  const dir=change>0?'up':change<0?'down':'flat';
+  const sign=change>=0?'+':'';
+  card.className=`card ${dir}${card.classList.contains('expanded')?' expanded':''}`;
+  const pel=document.getElementById('p-'+id);
+  pel.textContent=fmt(price,2);pel.classList.remove('ph');
+  document.getElementById('pct-'+id).textContent=`${sign}${fmt(pct,2)}%`;
+  document.getElementById('abs-'+id).textContent=`${sign}${fmt(change,2)}`;
+  document.getElementById('o-'+id).textContent=fmt(open,0);
+  document.getElementById('h-'+id).textContent=fmt(high,0);
+  document.getElementById('l-'+id).textContent=fmt(low,0);
+  document.getElementById('pc-'+id).textContent=fmt(prev,0);
 }
 
-async function loadAll() {
-  document.getElementById('refreshBtn').innerHTML = '<span class="spinning">↻</span> 更新中';
-  document.getElementById('refreshBtn').disabled = true;
+async function loadAll(){
+  document.getElementById('refreshBtn').innerHTML='<span class="spinning">↻</span> 更新中';
+  document.getElementById('refreshBtn').disabled=true;
+  const s=getSession();
+  const badge=document.getElementById('sessionBadge');
+  const bmap={day:['日盤進行中','day'],night:['夜盤進行中','night'],closed:['休市中','closed']};
+  badge.textContent=bmap[s][0];badge.className='session-badge '+bmap[s][1];
 
-  const s = getSession();
-  const badge = document.getElementById('sessionBadge');
-  const map = {day:['日盤進行中','day'],night:['夜盤進行中','night'],closed:['休市中','closed']};
-  badge.textContent=map[s][0]; badge.className='session-badge '+map[s][1];
+  await Promise.all(SYMS.map(async sym=>{
+    if(sym.id==='fut'){
+      // 台指期：優先用 TWF=F，失敗再用加權指數代替
+      const d=await fetchQuote('TWF%3DF');
+      if(d?.chart?.result?.[0]){
+        applyCard('fut',d.chart.result[0].meta);
+      } else {
+        // fallback: 用加權指數資料顯示
+        const d2=await fetchQuote('%5ETWII');
+        if(d2?.chart?.result?.[0]) applyCard('fut',d2.chart.result[0].meta);
+      }
+    } else {
+      const d=await fetchQuote(sym.yahoo);
+      if(d?.chart?.result?.[0]) applyCard(sym.id,d.chart.result[0].meta);
+    }
+  }));
 
-  // 先抓加權指數設定換算基準
-  await loadOne(SYMBOLS.find(s=>s.id==='twii'));
-  await Promise.all(SYMBOLS.filter(s=>s.id!=='twii').map(loadOne));
-
-  const tw = new Date().toLocaleString('zh-TW',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
-  document.getElementById('lastUpdate').textContent = `最後更新：${tw}`;
+  const tw=new Date().toLocaleString('zh-TW',{timeZone:'Asia/Taipei',
+    hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+  document.getElementById('lastUpdate').textContent=`最後更新：${tw}`;
   document.getElementById('refreshBtn').innerHTML='↻ 重新整理';
   document.getElementById('refreshBtn').disabled=false;
 }
 
-// 建立所有卡片
-SYMBOLS.forEach(buildCard);
+// 預先載入 TradingView library
+const tvScript=document.createElement('script');
+tvScript.src='https://s3.tradingview.com/tv.js';
+document.head.appendChild(tvScript);
+
+SYMS.forEach(buildCard);
 loadAll();
 </script>
 </body>
