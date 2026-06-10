@@ -143,6 +143,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter','Noto Sans TC',s
 
 <button class="refresh-btn" id="refreshBtn" onclick="loadAll()">↻ 重新整理</button>
 <div class="last-update" id="lastUpdate"></div>
+<div class="last-update" id="countdown"></div>
 
 <script>
 const SYMS=[
@@ -586,6 +587,37 @@ async function loadAll(){
 
 SYMS.forEach(buildCard);
 loadAll();
+
+// 自動更新：每30秒
+let countdownVal = 30;
+let countdownTimer = null;
+let autoTimer = null;
+
+function startCountdown(){
+  clearInterval(countdownTimer);
+  countdownVal = 30;
+  document.getElementById('countdown').textContent = `${countdownVal}秒後自動更新`;
+  countdownTimer = setInterval(()=>{
+    countdownVal--;
+    if(countdownVal <= 0){
+      document.getElementById('countdown').textContent = '更新中...';
+    } else {
+      document.getElementById('countdown').textContent = `${countdownVal}秒後自動更新`;
+    }
+  }, 1000);
+}
+
+function scheduleNext(){
+  clearTimeout(autoTimer);
+  autoTimer = setTimeout(async ()=>{
+    await loadAll();
+    startCountdown();
+    scheduleNext();
+  }, 30000);
+}
+
+startCountdown();
+scheduleNext();
 </script>
 </body>
 </html>
