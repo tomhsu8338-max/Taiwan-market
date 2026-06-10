@@ -147,7 +147,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter','Noto Sans TC',s
 <script>
 const SYMS=[
   {id:'twii',  yahoo:'%5ETWII',  label:'加權指數',        g:'tw', newsQ:'台股 加權指數'},
-  {id:'fut',   yahoo:'TWF%3DF',  label:'台指期（含夜盤）', g:'tw', useFinMind:true, chartYahoo:'IX0126.TW', newsQ:'台指期 期貨'},
+  {id:'fut',   yahoo:'TWF%3DF',  label:'台指期（含夜盤）', g:'tw', useFinMind:true, chartYahoo:'IX0126.TW', chartYahooLong:'%5ETWII', newsQ:'台指期 期貨'},
   {id:'sp500', yahoo:'%5EGSPC',  label:'S&P 500',         g:'us', newsQ:'S&P 500'},
   {id:'nasdaq',yahoo:'%5EIXIC',  label:'那斯達克 Nasdaq', g:'us', newsQ:'Nasdaq stock market'},
   {id:'dow',   yahoo:'%5EDJI',   label:'道瓊 Dow Jones',  g:'us', newsQ:'Dow Jones'},
@@ -241,9 +241,11 @@ function toggleCard(id,yahoo){
   const open=card.classList.contains('expanded');
   if(!open){
     const sym=SYMS.find(s=>s.id===id);
-    const cSym=sym?.chartYahoo||yahoo;
+    const idx=activeRange[id];
+    const useLong=idx>=3&&sym?.chartYahooLong;
+    const cSym=useLong?sym.chartYahooLong:(sym?.chartYahoo||yahoo);
     card.classList.add('expanded');
-    loadChart(id,cSym,activeRange[id]);
+    loadChart(id,cSym,idx);
     if(!newsLoaded[id]) loadNews(id,sym.newsQ);
   } else {
     card.classList.remove('expanded');
@@ -253,7 +255,10 @@ function toggleCard(id,yahoo){
 function setRange(id,yahoo,idx){
   activeRange[id]=idx;
   document.querySelectorAll(`#cp-${id} .rb`).forEach((b,i)=>b.classList.toggle('active',i===idx));
-  loadChart(id,yahoo,idx);
+  const sym=SYMS.find(s=>s.chartYahoo===yahoo||s.yahoo===yahoo||s.id===yahoo);
+  // 3個月以上（idx>=3）改用長期代號
+  const useLong=idx>=3&&sym?.chartYahooLong;
+  loadChart(id,useLong?sym.chartYahooLong:yahoo,idx);
 }
 
 // ===== 新聞 =====
