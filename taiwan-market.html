@@ -306,58 +306,67 @@ async function loadInst(){
   const body=document.getElementById('inst-body');
   const loading=document.getElementById('inst-loading');
   try{
-    const url='https://yahoo-proxy.tomhsu8338.workers.dev/?twse=1';
-    const res=await fetch(url);
+    const ts=Date.now();
+    const url=`https://yahoo-proxy.tomhsu8338.workers.dev/?twse=1&_=${ts}`;
+    const res=await fetch(url,{cache:'no-store'});
     if(!res.ok)throw new Error('fail');
     const json=await res.json();
-    // TWSE 三大法人格式
     const data=json?.data||[];
-    if(!data.length){loading.textContent='暫無資料';return;}
-
+    if(!data.length){loading.textContent='暫無資料（收盤後才更新）';return;}
     loading.style.display='none';
 
     // 設日期
-    const dateStr=json?.date||json?.title||'';
-    if(dateStr) document.getElementById('inst-date').textContent=dateStr;
+    const dateStr=json?.date||'';
+    if(dateStr){
+      // 轉換 yyyyMMdd → 台灣日期
+      const y=dateStr.slice(0,4),m=dateStr.slice(4,6),d=dateStr.slice(6,8);
+      document.getElementById('inst-date').textContent=`${y}/${m}/${d}`;
+    }
 
-    // 標題列
+    // TWSE T86 格式：每行是一個法人
+    // row[0]=法人名稱, row[1]=買進金額, row[2]=賣出金額, row[3]=買賣超金額
+    // 通常有：外資及陸資(不含外資自營商), 外資自營商, 投信, 自營商(自行買賣), 自營商(避險)
+    
+    // 標題
     const header=document.createElement('div');
     header.className='inst-row';
-    header.innerHTML=`<div class="inst-col-label"></div><div class="inst-col-label">買賣超(億)</div><div class="inst-col-label">成交(億)</div>`;
+    header.style.borderBottom='1px solid var(--border)';
+    header.innerHTML=`<div style="font-size:9px;color:var(--muted)">法人</div><div style="font-size:9px;color:var(--muted);text-align:right">買超(億)</div><div style="font-size:9px;color:var(--muted);text-align:right">賣超(億)</div>`;
     body.appendChild(header);
 
     let totalNet=0;
-    const instNames=['外資','投信','自營商'];
-    // TWSE API 三大法人順序：外資、投信、自營商
-    data.slice(0,3).forEach((row,i)=>{
-      // row 通常是陣列 [名稱, 買進, 賣出, 差額, ...]
-      const name=instNames[i]||row[0]||'';
-      const net=parseFloat((row[3]||'0').replace(/,/g,''));
-      const vol=parseFloat((row[1]||'0').replace(/,/g,''))/100000000;
+    // 顯示主要幾行（外資、外資自營、投信、自營）
+    const showRows=data.filter(row=>{
+      const name=row[0]||'';
+      return name.includes('外資')&&!name.includes('陸資合計')||name.includes('投信')||name.includes('自營商(自行')
+    }).slice(0,5);
+
+    showRows.forEach(row=>{
+      const name=(row[0]||'').replace('及陸資(不含外資自營商)','').replace('(自行買賣)','').trim();
+      const net=parseFloat((row[3]||'0').replace(/,/g,''))||0;
       totalNet+=net;
       const netB=net/100000000;
+      const isUp=netB>=0;
       const div=document.createElement('div');
       div.className='inst-row';
       div.innerHTML=`
-        <div class="inst-name">${name}</div>
-        <div class="inst-val ${netB>=0?'up':'down'}">${netB>=0?'+':''}${fmt(netB,1)}</div>
-        <div class="inst-val">${fmt(vol,1)}</div>`;
+        <div class="inst-name" style="font-size:11px">${name}</div>
+        <div class="inst-val ${isUp?'up':''}" style="font-size:12px">${isUp?'+'+fmt(netB,1):'—'}</div>
+        <div class="inst-val ${!isUp?'down':''}" style="font-size:12px">${!isUp?fmt(Math.abs(netB),1)+'':'—'}</div>`;
       body.appendChild(div);
     });
 
-    // 合計
+    // 合計行
     const totalB=totalNet/100000000;
     const sum=document.createElement('div');
-    sum.className='inst-summary';
+    sum.style.cssText='padding:10px 16px;display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.03);border-top:1px solid var(--border)';
     sum.innerHTML=`
-      <div class="inst-sum-item">
-        <div class="inst-sum-label">三大法人合計</div>
-        <div class="inst-sum-val ${totalB>=0?'up':'down'}">${totalB>=0?'+':''}${fmt(totalB,1)}億</div>
-      </div>`;
+      <div style="font-size:11px;color:var(--muted)">三大法人合計</div>
+      <div style="font-size:16px;font-weight:700;font-family:Inter,monospace;color:${totalB>=0?'var(--up)':'var(--down)'}">${totalB>=0?'+':''}${fmt(totalB,1)}億</div>`;
     body.appendChild(sum);
 
   }catch(e){
-    loading.textContent='資料載入失敗';
+    loading.textContent='資料載入失敗，請稍後再試';
   }
 }
 
@@ -509,7 +518,7 @@ async function fetchQuote(sym){
   ];
   for(const url of urls){
     try{
-      const res=await fetch(url,{headers:{Accept:'application/json'}});if(!res.ok)continue;
+      const res=await fetch(url,{headers:{Accept:'application/json'},cache:'no-store'});if(!res.ok)continue;
       const d=JSON.parse(await res.text());if(d?.chart?.result?.[0])return d;
     }catch{continue;}
   }
@@ -534,20 +543,47 @@ function applyCard(id,meta){
   document.getElementById('l-'+id).textContent=fmt(low,0);document.getElementById('pc-'+id).textContent=fmt(prev,0);
 }
 
-async function fetchFinMindFut(){
-  try{
-    const url='https://yahoo-proxy.tomhsu8338.workers.dev/?taifex=1';
-    const res=await fetch(url,{headers:{Accept:'application/json'}});if(!res.ok)return null;
-    const json=await res.json();const rows=json?.RtData?.QuoteList||[];if(!rows.length)return null;
-    const tw=new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Taipei'}));
-    const t=tw.getHours()*60+tw.getMinutes();const isDay=(t>=510&&t<=830);const suffix=isDay?'-F':'-M';
-    const candidates=rows.filter(r=>r.SymbolID&&r.SymbolID.includes('TXF')&&r.SymbolID.endsWith(suffix));
-    if(!candidates.length)return null;
-    const tx=candidates.reduce((a,b)=>parseInt(b.CTotalVolume||0)>parseInt(a.CTotalVolume||0)?b:a);
-    const price=parseFloat(tx.CLastPrice||0),prev=parseFloat(tx.CRefPrice||0);
-    if(!price||!prev)return null;
-    return{price,prev,open:parseFloat(tx.COpenPrice||price),high:parseFloat(tx.CHighPrice||price),low:parseFloat(tx.CLowPrice||price)};
-  }catch(e){return null;}
+async function fetchFinMindFut(retry=2){
+  for(let attempt=0;attempt<=retry;attempt++){
+    try{
+      const ts=Date.now();
+      const url=`https://yahoo-proxy.tomhsu8338.workers.dev/?taifex=1&_=${ts}`;
+      const res=await fetch(url,{headers:{Accept:'application/json'},cache:'no-store'});
+      if(!res.ok)continue;
+      const json=await res.json();
+      const rows=json?.RtData?.QuoteList||[];
+      if(!rows.length)continue;
+
+      const tw=new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Taipei'}));
+      const t=tw.getHours()*60+tw.getMinutes();
+      // 日盤 08:45~13:45, 夜盤 15:00~次日05:00, 其他時間（05:00~08:45）為空窗，仍嘗試抓夜盤最後資料(-M)
+      const isDay=(t>=525&&t<=825);
+      const suffix=isDay?'-F':'-M';
+
+      let candidates=rows.filter(r=>r.SymbolID&&r.SymbolID.includes('TXF')&&r.SymbolID.endsWith(suffix));
+      // fallback：若該時段抓不到，改抓另一邊看有沒有資料
+      if(!candidates.length){
+        const altSuffix=isDay?'-M':'-F';
+        candidates=rows.filter(r=>r.SymbolID&&r.SymbolID.includes('TXF')&&r.SymbolID.endsWith(altSuffix));
+      }
+      if(!candidates.length)continue;
+
+      const tx=candidates.reduce((a,b)=>parseInt(b.CTotalVolume||0)>parseInt(a.CTotalVolume||0)?b:a);
+      let price=parseFloat(tx.CLastPrice||0);
+      const prev=parseFloat(tx.CRefPrice||0);
+      // 夜盤剛開始或空窗期 CLastPrice=0，改用昨收顯示
+      if(!price) price=prev;
+      if(!price||!prev)continue;
+      const open=parseFloat(tx.COpenPrice||0)||price;
+      const high=parseFloat(tx.CHighPrice||0)||price;
+      const low=parseFloat(tx.CLowPrice||0)||price;
+      return{price,prev,open,high,low};
+    }catch(e){
+      if(attempt===retry)return null;
+      continue;
+    }
+  }
+  return null;
 }
 
 function applyCardRaw(id,price,prev,open,high,low){
